@@ -133,7 +133,7 @@
         <tr>
           <th>局</th>
           <th class="p1-name">P1</th>
-          <th class="p2-name">P3</th>
+          <th class="p2-name">P2</th>
           <th class="p3-name">P3</th>
           <th class="p4-name">P4</th>
         </tr>
@@ -175,11 +175,9 @@
   <script>
     let games = [];
 
-    // 起動時の初期化・保存データの読み込み
     window.onload = () => {
       loadState();
       
-      // プレイヤー名・チップの入力変更を自動保存
       ['p1','p2','p3','p4'].forEach((id, idx) => {
         const input = document.getElementById(id);
         input.addEventListener('input', (e) => {
@@ -194,7 +192,6 @@
       });
     };
 
-    // 状態の自動保存 (localStorage)
     function saveState() {
       const state = {
         names: ['p1','p2','p3','p4'].map(id => document.getElementById(id).value),
@@ -204,7 +201,6 @@
       localStorage.setItem('mahjong_score_data', JSON.stringify(state));
     }
 
-    // 状態の復元
     function loadState() {
       const data = localStorage.getItem('mahjong_score_data');
       if (!data) return;
@@ -232,7 +228,6 @@
       }
     }
 
-    // 1局のスコア計算
     function addGame() {
       const rawInputs = [
         document.getElementById('s1').value,
@@ -273,7 +268,6 @@
       saveState();
     }
 
-    // 削除機能
     function deleteGame(index) {
       if (confirm(`${index + 1}局目のデータを削除しますか？`)) {
         games.splice(index, 1);
@@ -283,7 +277,6 @@
       }
     }
 
-    // 表描画
     function renderTable() {
       const tbody = document.getElementById('score-table-body');
       tbody.innerHTML = '';
@@ -310,7 +303,6 @@
       });
     }
 
-    // 最終精算
     function calcFinal() {
       if (games.length === 0) return alert('対局データがありません');
 
@@ -354,7 +346,6 @@
       resBox.style.display = 'block';
     }
 
-    // 全データクリア（リセット）
     function resetAll() {
       if (confirm('すべてのデータをクリアして新しい対局を始めますか？')) {
         localStorage.removeItem('mahjong_score_data');
