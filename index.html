@@ -58,6 +58,12 @@
       background-color: #007bff;
       margin-top: 10px;
     }
+    .btn-reset {
+      background-color: #6c757d;
+      margin-top: 15px;
+      font-size: 13px;
+      padding: 6px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -98,7 +104,7 @@
 
   <h1>🀄️ 麻雀スコア計算</h1>
 
-  <!-- 1. プレイヤー名入力欄 (初期表示は空欄、プレースホルダーのみ) -->
+  <!-- 1. プレイヤー名 & 持ち点入力欄 -->
   <div class="card">
     <div class="label-sm">プレイヤー名</div>
     <div class="grid">
@@ -108,7 +114,6 @@
       <input type="text" id="p4" placeholder="P4">
     </div>
 
-    <!-- 持ち点入力 (上位3桁) -->
     <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
     <div class="grid">
       <input type="number" id="s1" placeholder="P1持ち点" inputmode="numeric">
@@ -128,7 +133,7 @@
         <tr>
           <th>局</th>
           <th class="p1-name">P1</th>
-          <th class="p2-name">P2</th>
+          <th class="p2-name">P3</th>
           <th class="p3-name">P3</th>
           <th class="p4-name">P4</th>
         </tr>
@@ -162,18 +167,72 @@
   <!-- 最終精算表示領域 -->
   <div id="final-result" class="card"></div>
 
+  <!-- 新規対局用リセットボタン -->
+  <div style="text-align: center;">
+    <button class="btn-reset" onclick="resetAll()">全データをクリア（新規対局）</button>
+  </div>
+
   <script>
     let games = [];
 
-    // プレイヤー名のリアルタイム反映
-    ['p1','p2','p3','p4'].forEach((id, idx) => {
-      document.getElementById(id).addEventListener('input', (e) => {
-        const name = e.target.value || `P${idx+1}`;
-        document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = name);
+    // 起動時の初期化・保存データの読み込み
+    window.onload = () => {
+      loadState();
+      
+      // プレイヤー名・チップの入力変更を自動保存
+      ['p1','p2','p3','p4'].forEach((id, idx) => {
+        const input = document.getElementById(id);
+        input.addEventListener('input', (e) => {
+          const name = e.target.value || `P${idx+1}`;
+          document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = name);
+          saveState();
+        });
       });
-    });
 
-    // 1局のスコア計算機能
+      ['chip1','chip2','chip3','chip4'].forEach(id => {
+        document.getElementById(id).addEventListener('input', saveState);
+      });
+    };
+
+    // 状態の自動保存 (localStorage)
+    function saveState() {
+      const state = {
+        names: ['p1','p2','p3','p4'].map(id => document.getElementById(id).value),
+        chips: ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value),
+        games: games
+      };
+      localStorage.setItem('mahjong_score_data', JSON.stringify(state));
+    }
+
+    // 状態の復元
+    function loadState() {
+      const data = localStorage.getItem('mahjong_score_data');
+      if (!data) return;
+
+      try {
+        const state = JSON.parse(data);
+        if (state.names) {
+          state.names.forEach((name, idx) => {
+            document.getElementById(`p${idx+1}`).value = name;
+            const displayName = name || `P${idx+1}`;
+            document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = displayName);
+          });
+        }
+        if (state.chips) {
+          state.chips.forEach((chip, idx) => {
+            document.getElementById(`chip${idx+1}`).value = chip;
+          });
+        }
+        if (state.games) {
+          games = state.games;
+          renderTable();
+        }
+      } catch (e) {
+        console.error('復元エラー:', e);
+      }
+    }
+
+    // 1局のスコア計算
     function addGame() {
       const rawInputs = [
         document.getElementById('s1').value,
@@ -186,20 +245,15 @@
         return alert('4人分すべての持ち点を入力してください');
       }
 
-      // 1. 素点の実数を計算 (上位3桁入力 → 100倍)
       let players = rawInputs.map((val, idx) => {
         let rawScore = Number(val) * 100;
         let roundedPoint = Math.round(rawScore / 1000) * 1000;
         return { idx, rawScore, roundedPoint, score: 0 };
       });
 
-      // 2. 持ち点順にソート (1位 -> 4位)
       players.sort((a, b) => b.rawScore - a.rawScore);
 
-      // ウマの定義 [1位, 2位, 3位, 4位]
       const uma = [20, 10, -10, -20];
-
-      // 3. 4位、3位、2位のスコアを順に計算
       let subTotal = 0;
       for (let rank = 3; rank >= 1; rank--) {
         let p = players[rank];
@@ -208,31 +262,28 @@
         subTotal += p.score;
       }
 
-      // 4. 1位のスコア計算 (合計が0になるよう差分吸収)
       players[0].score = -subTotal;
-
-      // 元の座順(P1〜P4)に戻す
       players.sort((a, b) => a.idx - b.idx);
 
-      // 局データに追加
       games.push(players.map(p => p.score));
 
-      // 入力欄クリア
       for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).value = '';
 
       renderTable();
+      saveState();
     }
 
-    // 行クリック時の削除機能
+    // 削除機能
     function deleteGame(index) {
       if (confirm(`${index + 1}局目のデータを削除しますか？`)) {
         games.splice(index, 1);
         renderTable();
         document.getElementById('final-result').style.display = 'none';
+        saveState();
       }
     }
 
-    // スコア表の描画
+    // 表描画
     function renderTable() {
       const tbody = document.getElementById('score-table-body');
       tbody.innerHTML = '';
@@ -252,7 +303,6 @@
         tbody.innerHTML += row;
       });
 
-      // 合計行更新
       totals.forEach((tot, idx) => {
         let el = document.getElementById(`tot-${idx+1}`);
         el.textContent = tot > 0 ? `+${tot}` : tot;
@@ -260,7 +310,7 @@
       });
     }
 
-    // 最終精算計算 (テンピン + チップ)
+    // 最終精算
     function calcFinal() {
       if (games.length === 0) return alert('対局データがありません');
 
@@ -302,6 +352,22 @@
       const resBox = document.getElementById('final-result');
       resBox.innerHTML = html;
       resBox.style.display = 'block';
+    }
+
+    // 全データクリア（リセット）
+    function resetAll() {
+      if (confirm('すべてのデータをクリアして新しい対局を始めますか？')) {
+        localStorage.removeItem('mahjong_score_data');
+        games = [];
+        ['p1','p2','p3','p4','s1','s2','s3','s4','chip1','chip2','chip3','chip4'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        ['p1','p2','p3','p4'].forEach((id, idx) => {
+          document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = `P${idx+1}`);
+        });
+        renderTable();
+        document.getElementById('final-result').style.display = 'none';
+      }
     }
   </script>
 </body>
