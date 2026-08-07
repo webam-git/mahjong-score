@@ -14,13 +14,14 @@
     select { text-align-last: center; }
     button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
     button:active { opacity: 0.8; }
-    .btn-send { background-color: #e0a800; color: #fff; margin-top: 10px; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-send { background-color: #e0a800; color: #fff; margin-top: 6px; }
     .btn-dash { background-color: #17a2b8; margin-top: 10px; }
     .btn-reg { background-color: #6f42c1; margin-top: 10px; }
     .btn-chip { background-color: #fd7e14; color: white; margin-top: 10px; }
     .btn-sub { background-color: #6c757d; font-size: 11px; padding: 6px 12px; width: auto; }
     .btn-del { background-color: #dc3545; color: white; padding: 2px 6px; font-size: 10px; border-radius: 3px; border: none; cursor: pointer; }
-    .btn-reset { background-color: #6c757d; color: white; font-size: 11px; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-reset { background-color: #6c757d; color: white; font-size: 10px; padding: 3px 8px; border: none; border-radius: 4px; cursor: pointer; width: auto; }
     .btn-pair { background-color: #20c997; color: white; font-size: 11px; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; flex: 1; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
     .tab-group { display: flex; gap: 6px; margin-bottom: 15px; }
@@ -32,13 +33,11 @@
     .score-plus { color: #d9534f; font-weight: bold; }
     .score-minus { color: #0275d8; font-weight: bold; }
 
-    /* チップ入力欄の非活性（ロック）用スタイル */
     .chip-disabled {
       opacity: 0.4;
       pointer-events: none;
     }
 
-    /* モーダル表示設定 */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.4); justify-content: center; align-items: flex-start;
@@ -160,7 +159,12 @@
           </tr>
         </tfoot>
       </table>
-      <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへ全局データ送信</button>
+
+      <!-- 送信制御インジケーター & 動的送信ボタン -->
+      <div id="send-notice" style="font-size:11px; color:#d9534f; text-align:center; margin-top:10px;">
+        ※3局分のスコアを入力すると送信できます（現在 0 / 3局）
+      </div>
+      <button id="btn-send-main" class="btn-send" onclick="sendToSheet()" disabled>📤 前半戦データ送信</button>
     </div>
 
     <!-- 最終チップ枚数入力（後半戦のみ有効） -->
@@ -212,7 +216,7 @@
       <hr style="border:none; border-top:1px dashed #ccc; margin:20px 0;">
 
       <!-- 2. トータル精算金額表 -->
-      <h3 style="font-size:14px; text-align:center; color:#28a745; margin-top:0;">💴 トータル収支金額表（点数＋チップ換算）</h3>
+      <h3 style="font-size:14px; text-align:center; color:#28a745; margin-top:0;">整体 収支金額表（点数＋チップ換算）</h3>
       <div id="summary-money-table-area"></div>
     </div>
   </div>
@@ -228,7 +232,7 @@
     </div>
   </div>
 
-  <!-- 後半戦組み合わせ確認モーダル（新機能！） -->
+  <!-- 後半戦組み合わせ確認モーダル -->
   <div id="pairing-modal" class="modal-overlay" onclick="closePairingModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
@@ -252,6 +256,7 @@
     window.onload = () => {
       loadState();
       updateChipControl();
+      updateSendButtonControl();
     };
 
     function syncTournamentId(val) {
@@ -261,6 +266,7 @@
     function onPhaseChange() {
       saveState();
       updateChipControl();
+      updateSendButtonControl();
     }
 
     function onPlayerChange() {
@@ -270,7 +276,6 @@
       saveState();
     }
 
-    // フォーム入力値の一括リセット（🧹ボタン）
     function resetFormInputs() {
       if (!confirm('選択中のプレイヤーと入力した持ち点をリセットしますか？\n（大会IDは保持されます）')) return;
 
@@ -334,6 +339,25 @@
         area.classList.add('chip-disabled');
         notice.style.display = 'block';
         btn.disabled = true;
+      }
+    }
+
+    // 送信ボタンの文言および活性化制御
+    function updateSendButtonControl() {
+      const phase = document.getElementById('select-phase').value;
+      const btn = document.getElementById('btn-send-main');
+      const notice = document.getElementById('send-notice');
+      const count = games.length;
+
+      btn.textContent = `📤 ${phase}戦データ送信`;
+
+      if (count >= 3) {
+        btn.disabled = false;
+        notice.style.display = 'none';
+      } else {
+        btn.disabled = true;
+        notice.style.display = 'block';
+        notice.textContent = `※3局分のスコアを入力すると送信できます（現在 ${count} / 3局）`;
       }
     }
 
@@ -551,6 +575,8 @@
         el.textContent = tot > 0 ? `+${tot}` : tot;
         el.className = tot > 0 ? 'score-plus' : (tot < 0 ? 'score-minus' : '');
       });
+
+      updateSendButtonControl();
     }
 
     async function sendToSheet() {
@@ -559,12 +585,12 @@
       const currentPhase = document.getElementById('select-phase').value;
 
       if (!tId) return alert('大会IDを入力してください');
-      if (games.length === 0) return alert('確定済みの局データがありません');
+      if (games.length < 3) return alert('3局分のスコアを確定させてから送信してください');
 
       const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
       if (names.some(n => !n)) return alert('プレイヤーを全員選択してください');
 
-      if (!confirm(`確定済みの ${games.length} 局分のデータを送信しますか？`)) return;
+      if (!confirm(`【${currentTable}（${currentPhase}）】の確定済み ${games.length} 局分のデータを送信しますか？`)) return;
 
       try {
         let existingCount = 0;
@@ -645,7 +671,6 @@
       }
     }
 
-    // 後半戦の卓組み一覧モーダル表示
     async function showNextPairingModal() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -658,10 +683,8 @@
         const data = await res.json();
 
         if (data.status === 'success') {
-          // 前半のログだけ抽出
           const firstHalfLogs = data.logs.filter(l => l.phase === '前半');
 
-          // 各卓の消化局数チェック
           const tables = ['A卓', 'B卓', 'C卓'];
           const counts = { 'A卓': 0, 'B卓': 0, 'C卓': 0 };
           const tableScores = { 'A卓': {}, 'B卓': {}, 'C卓': {} };
@@ -669,7 +692,6 @@
           firstHalfLogs.forEach(l => {
             if (counts[l.table] !== undefined) {
               counts[l.table]++;
-              // スコア加算
               [
                 { n: l.p1Name, s: l.p1Score },
                 { n: l.p2Name, s: l.p2Score },
@@ -684,7 +706,6 @@
             }
           });
 
-          // 3局消化していない卓があるか確認
           const unfinished = tables.filter(t => counts[t] < 3);
 
           if (unfinished.length > 0) {
@@ -702,7 +723,6 @@
             return;
           }
 
-          // 各卓の前半順位を算出 (1位〜4位)
           const ranks = {};
           tables.forEach(t => {
             ranks[t] = Object.keys(tableScores[t])
@@ -710,10 +730,6 @@
               .sort((a, b) => b.score - a.score);
           });
 
-          // 後半卓組みルール
-          // A卓（後半）: A1, A3, B2, B4
-          // B卓（後半）: B1, B3, C2, C4
-          // C卓（後半）: C1, C3, A2, A4
           const nextA = [ranks['A卓'][0], ranks['A卓'][2], ranks['B卓'][1], ranks['B卓'][3]];
           const nextB = [ranks['B卓'][0], ranks['B卓'][2], ranks['C卓'][1], ranks['C卓'][3]];
           const nextC = [ranks['C卓'][0], ranks['C卓'][2], ranks['A卓'][1], ranks['A卓'][3]];
