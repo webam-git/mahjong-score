@@ -17,6 +17,7 @@
     .btn-send { background-color: #e0a800; color: #fff; margin-top: 10px; }
     .btn-dash { background-color: #17a2b8; margin-top: 10px; }
     .btn-reg { background-color: #6f42c1; margin-top: 10px; }
+    .btn-chip { background-color: #fd7e14; color: white; margin-top: 10px; }
     .btn-sub { background-color: #6c757d; font-size: 11px; padding: 6px 12px; width: auto; }
     .btn-del { background-color: #dc3545; color: white; padding: 2px 6px; font-size: 10px; border-radius: 3px; border: none; cursor: pointer; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
@@ -145,6 +146,20 @@
       </table>
       <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへ全局データ送信</button>
     </div>
+
+    <!-- 最終チップ枚数入力 -->
+    <div class="card" style="border: 1px solid #fd7e14;">
+      <div style="font-size:12px; font-weight:bold; color:#fd7e14; text-align:center; margin-bottom:8px;">🪙 全局終了後の最終チップ枚数入力</div>
+      <div class="label-sm">選択中の4名の最終チップ枚数（±入力可 例: +5, -3）</div>
+      <div class="grid">
+        <input type="number" id="chip1" placeholder="P1枚数" inputmode="numeric">
+        <input type="number" id="chip2" placeholder="P2枚数" inputmode="numeric">
+        <input type="number" id="chip3" placeholder="P3枚数" inputmode="numeric">
+        <input type="number" id="chip4" placeholder="P4枚数" inputmode="numeric">
+      </div>
+      <button class="btn-chip" onclick="sendChipData()">🪙 最終チップ枚数を送信保存</button>
+    </div>
+
   </div>
 
   <!-- 2. 集計結果セクション（パスワード保護） -->
@@ -156,9 +171,21 @@
         <button onclick="fetchSummary()" class="btn-dash" style="width:120px; margin:0;">表示</button>
       </div>
     </div>
+    
     <div id="summary-result-card" class="card" style="display:none;">
-      <h3 style="font-size:14px; text-align:center; margin-top:0;">🏆 トータル個人順位表</h3>
+      <div style="font-size:11px; color:#666; text-align:center; margin-bottom:12px; background:#e9ecef; padding:4px; border-radius:4px;">
+        ※レート設定：テンピン（1pt = 100円） / チップ 1枚 200円 固定
+      </div>
+
+      <!-- 1. 個人スコア順位表 -->
+      <h3 style="font-size:14px; text-align:center; margin-top:0;">🏆 トータル個人順位表（スコア）</h3>
       <div id="summary-table-area"></div>
+
+      <hr style="border:none; border-top:1px dashed #ccc; margin:20px 0;">
+
+      <!-- 2. トータル精算金額表 -->
+      <h3 style="font-size:14px; text-align:center; color:#28a745; margin-top:0;">💴 トータル収支金額表（点数＋チップ換算）</h3>
+      <div id="summary-money-table-area"></div>
     </div>
   </div>
 
@@ -175,9 +202,13 @@
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
+    const POINT_RATE = 100; // テンピン固定 (1pt = 100円)
+    const CHIP_RATE = 200;   // チップ 1枚 200円固定
+
     let games = [];
     let rawScoreHistory = [];
     let currentPlayersList = [];
+    let fetchedSummaryData = [];
 
     window.onload = () => {
       loadState();
@@ -471,6 +502,38 @@
       }
     }
 
+    async function sendChipData() {
+      const tId = document.getElementById('tournament-id').value.trim();
+      if (!tId) return alert('大会IDを入力してください');
+
+      const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
+      if (names.some(n => !n)) return alert('プレイヤーを全員選択してください');
+
+      const chipVals = ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value);
+      if (chipVals.some(v => v === '')) return alert('4人全員のチップ枚数を入力してください（0枚の場合は0）');
+
+      const chipData = names.map((name, i) => ({
+        name: name,
+        chips: Number(chipVals[i])
+      }));
+
+      if (!confirm(`選択中の4名の最終チップ枚数を送信保存しますか？`)) return;
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "submitChip", tournamentId: tId, chipData: chipData })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('最終チップ枚数を正常に送信保存しました！');
+          ['chip1','chip2','chip3','chip4'].forEach(id => document.getElementById(id).value = '');
+        }
+      } catch(e) {
+        alert('チップ送信エラー: ' + e);
+      }
+    }
+
     async function showServerLogsModal() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -568,29 +631,59 @@
         if (data.status === 'error') {
           alert(data.message);
         } else {
-          renderSummaryTable(data.summary);
+          fetchedSummaryData = data.summary;
+          renderSummaryTables();
         }
       } catch(e) {
         alert('集計取得エラー: ' + e);
       }
     }
 
-    function renderSummaryTable(summary) {
-      if (summary.length === 0) {
+    function renderSummaryTables() {
+      if (!fetchedSummaryData || fetchedSummaryData.length === 0) {
         document.getElementById('summary-table-area').innerHTML = '<p style="text-align:center; color:#888;">該当するデータがありません</p>';
-      } else {
-        let html = '<table><thead><tr><th>順位</th><th>名前</th><th>半荘数</th><th>トータル</th></tr></thead><tbody>';
-        summary.forEach((p, idx) => {
-          html += `<tr>
-            <td style="font-weight:bold;">${idx + 1}位</td>
-            <td>${p.name}</td>
-            <td>${p.games}局</td>
-            <td style="font-weight:bold; color:${p.totalScore > 0 ? '#d9534f' : '#0275d8'}">${p.totalScore > 0 ? '+'+p.totalScore : p.totalScore}</td>
-          </tr>`;
-        });
-        html += '</tbody></table>';
-        document.getElementById('summary-table-area').innerHTML = html;
+        document.getElementById('summary-money-table-area').innerHTML = '';
+        document.getElementById('summary-result-card').style.display = 'block';
+        return;
       }
+
+      // 1. スコア順位表の描画
+      let htmlScore = '<table><thead><tr><th>順位</th><th>名前</th><th>半荘数</th><th>トータル</th></tr></thead><tbody>';
+      fetchedSummaryData.forEach((p, idx) => {
+        htmlScore += `<tr>
+          <td style="font-weight:bold;">${idx + 1}位</td>
+          <td>${p.name}</td>
+          <td>${p.games}局</td>
+          <td style="font-weight:bold; color:${p.totalScore > 0 ? '#d9534f' : '#0275d8'}">${p.totalScore > 0 ? '+'+p.totalScore : p.totalScore}</td>
+        </tr>`;
+      });
+      htmlScore += '</tbody></table>';
+      document.getElementById('summary-table-area').innerHTML = htmlScore;
+
+      // 2. 金額収支表の描画 (テンピン: スコア*100円 + チップ*200円)
+      const moneyList = fetchedSummaryData.map(p => {
+        const scoreMoney = p.totalScore * POINT_RATE;
+        const chipMoney = (p.chips || 0) * CHIP_RATE;
+        const totalMoney = scoreMoney + chipMoney;
+        return { name: p.name, totalMoney: totalMoney, chips: p.chips || 0 };
+      }).sort((a, b) => b.totalMoney - a.totalMoney);
+
+      let htmlMoney = '<table><thead><tr><th>順位</th><th>名前</th><th>チップ</th><th>トータル収支</th></tr></thead><tbody>';
+      moneyList.forEach((p, idx) => {
+        const fmtMoney = p.totalMoney > 0 ? `+${p.totalMoney.toLocaleString()}円` : `${p.totalMoney.toLocaleString()}円`;
+        const clsMoney = p.totalMoney > 0 ? 'score-plus' : (p.totalMoney < 0 ? 'score-minus' : '');
+        const fmtChip = p.chips > 0 ? `+${p.chips}枚` : `${p.chips}枚`;
+
+        htmlMoney += `<tr>
+          <td style="font-weight:bold;">${idx + 1}位</td>
+          <td>${p.name}</td>
+          <td>${fmtChip}</td>
+          <td class="${clsMoney}">${fmtMoney}</td>
+        </tr>`;
+      });
+      htmlMoney += '</tbody></table>';
+      document.getElementById('summary-money-table-area').innerHTML = htmlMoney;
+
       document.getElementById('summary-result-card').style.display = 'block';
     }
   </script>
