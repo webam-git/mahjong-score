@@ -42,7 +42,7 @@
     <div class="card">
       <div class="label-sm">大会ID（日付など）</div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <input type="text" id="reg-tournament-id" placeholder="例: 20260807">
+        <input type="text" id="reg-tournament-id" placeholder="例: 20260807" oninput="saveState()">
         <button type="button" class="btn-sub" onclick="loadRegPlayerList()" style="width:140px; margin:0;">🔍 名簿読み込み</button>
       </div>
       
@@ -60,17 +60,17 @@
       <div class="grid-2">
         <div>
           <div style="font-size:10px; color:#888; text-align:center;">大会ID (日付など)</div>
-          <input type="text" id="tournament-id" placeholder="20260807">
+          <input type="text" id="tournament-id" placeholder="20260807" oninput="syncTournamentId(this.value); saveState();">
         </div>
         <div>
           <div style="font-size:10px; color:#888; text-align:center;">卓・節</div>
           <div style="display:flex; gap:4px;">
-            <select id="select-table">
+            <select id="select-table" onchange="saveState()">
               <option value="A卓">A卓</option>
               <option value="B卓">B卓</option>
               <option value="C卓">C卓</option>
             </select>
-            <select id="select-phase">
+            <select id="select-phase" onchange="saveState()">
               <option value="前半">前半</option>
               <option value="後半">後半</option>
             </select>
@@ -84,18 +84,18 @@
 
       <div class="label-sm">対局プレイヤー（名簿から選択）</div>
       <div class="grid">
-        <select id="p1-select"><option value="">P1</option></select>
-        <select id="p2-select"><option value="">P2</option></select>
-        <select id="p3-select"><option value="">P3</option></select>
-        <select id="p4-select"><option value="">P4</option></select>
+        <select id="p1-select" onchange="saveState()"><option value="">P1</option></select>
+        <select id="p2-select" onchange="saveState()"><option value="">P2</option></select>
+        <select id="p3-select" onchange="saveState()"><option value="">P3</option></select>
+        <select id="p4-select" onchange="saveState()"><option value="">P4</option></select>
       </div>
 
       <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
       <div class="grid">
-        <input type="number" id="s1" placeholder="持ち点" inputmode="numeric">
-        <input type="number" id="s2" placeholder="持ち点" inputmode="numeric">
-        <input type="number" id="s3" placeholder="持ち点" inputmode="numeric">
-        <input type="number" id="s4" placeholder="持ち点" inputmode="numeric">
+        <input type="number" id="s1" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
+        <input type="number" id="s2" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
+        <input type="number" id="s3" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
+        <input type="number" id="s4" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
       </div>
 
       <button onclick="addGame()">計算＆確定</button>
@@ -132,6 +132,82 @@
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
     let currentGameScores = [];
+    let currentPlayersList = []; // 読み込んだ名簿のキャッシュ
+
+    window.onload = () => {
+      loadState();
+    };
+
+    function syncTournamentId(val) {
+      document.getElementById('reg-tournament-id').value = val;
+    }
+
+    // 状態をローカルストレージへ保存
+    function saveState() {
+      const state = {
+        regTId: document.getElementById('reg-tournament-id').value,
+        tId: document.getElementById('tournament-id').value,
+        table: document.getElementById('select-table').value,
+        phase: document.getElementById('select-phase').value,
+        p1: document.getElementById('p1-select').value,
+        p2: document.getElementById('p2-select').value,
+        p3: document.getElementById('p3-select').value,
+        p4: document.getElementById('p4-select').value,
+        s1: document.getElementById('s1').value,
+        s2: document.getElementById('s2').value,
+        s3: document.getElementById('s3').value,
+        s4: document.getElementById('s4').value,
+        currentGameScores: currentGameScores,
+        currentPlayersList: currentPlayersList
+      };
+      localStorage.setItem('mahjong_tournament_state', JSON.stringify(state));
+    }
+
+    // 状態の復元
+    function loadState() {
+      const saved = localStorage.getItem('mahjong_tournament_state');
+      if (!saved) return;
+      try {
+        const state = JSON.parse(saved);
+        if (state.regTId !== undefined) document.getElementById('reg-tournament-id').value = state.regTId;
+        if (state.tId !== undefined) document.getElementById('tournament-id').value = state.tId;
+        if (state.table !== undefined) document.getElementById('select-table').value = state.table;
+        if (state.phase !== undefined) document.getElementById('select-phase').value = state.phase;
+        
+        if (state.s1 !== undefined) document.getElementById('s1').value = state.s1;
+        if (state.s2 !== undefined) document.getElementById('s2').value = state.s2;
+        if (state.s3 !== undefined) document.getElementById('s3').value = state.s3;
+        if (state.s4 !== undefined) document.getElementById('s4').value = state.s4;
+
+        if (state.currentPlayersList && state.currentPlayersList.length > 0) {
+          currentPlayersList = state.currentPlayersList;
+          populateSelects(currentPlayersList);
+          if (state.p1) document.getElementById('p1-select').value = state.p1;
+          if (state.p2) document.getElementById('p2-select').value = state.p2;
+          if (state.p3) document.getElementById('p3-select').value = state.p3;
+          if (state.p4) document.getElementById('p4-select').value = state.p4;
+        }
+
+        if (state.currentGameScores && state.currentGameScores.length > 0) {
+          currentGameScores = state.currentGameScores;
+          renderTable();
+        }
+      } catch(e) {
+        console.error('復元エラー:', e);
+      }
+    }
+
+    function populateSelects(players) {
+      ['p1-select','p2-select','p3-select','p4-select'].forEach(id => {
+        const sel = document.getElementById(id);
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">選択</option>';
+        players.forEach(p => {
+          sel.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+        if (currentVal) sel.value = currentVal;
+      });
+    }
 
     function switchTab(type) {
       document.getElementById('section-reg').style.display = type === 'reg' ? 'block' : 'none';
@@ -182,6 +258,7 @@
         if (data.status === 'success') {
           alert(`大会ID【${tId}】のメンバー名簿（${players.length}名）を更新保存しました！`);
           document.getElementById('tournament-id').value = tId;
+          saveState();
         }
       } catch(e) {
         alert('登録エラー: ' + e);
@@ -200,13 +277,9 @@
         });
         const data = await res.json();
         if (data.players && data.players.length > 0) {
-          ['p1-select','p2-select','p3-select','p4-select'].forEach(id => {
-            const sel = document.getElementById(id);
-            sel.innerHTML = '<option value="">選択</option>';
-            data.players.forEach(p => {
-              sel.innerHTML += `<option value="${p}">${p}</option>`;
-            });
-          });
+          currentPlayersList = data.players;
+          populateSelects(currentPlayersList);
+          saveState();
           alert(`大会ID【${tId}】の名簿（${data.players.length}名）を読み込みました！`);
         } else {
           alert(`大会ID【${tId}】に登録されている参加者が見つかりません。「👥 参加者登録・編集」タブから登録してください。`);
@@ -239,6 +312,7 @@
 
       currentGameScores = players.map(p => p.score);
       renderTable();
+      saveState();
     }
 
     function renderTable() {
@@ -277,6 +351,7 @@
           ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
           currentGameScores = [];
           document.getElementById('score-table-body').innerHTML = '';
+          saveState();
         }
       } catch(e) {
         alert('送信エラー: ' + e);
