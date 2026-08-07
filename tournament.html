@@ -6,7 +6,12 @@
   <title>大会用スコア集計</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f8f9fa; color: #333; }
-    h1 { font-size: 1.2rem; text-align: center; margin-bottom: 15px; }
+    
+    /* ヘッダーエリア */
+    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .header-area h1 { font-size: 1.2rem; margin: 0; }
+    .btn-help { background-color: #17a2b8; color: white; border: none; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    
     .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; }
@@ -51,11 +56,20 @@
       background: #f8f9fa; border: 1px solid #ced4da; border-radius: 6px;
       padding: 10px; margin-bottom: 10px;
     }
+
+    /* 使い方マニュアル用スタイル */
+    .help-section { border-bottom: 1px solid #eee; padding: 10px 0; }
+    .help-title { font-weight: bold; font-size: 13px; color: #007bff; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .help-text { font-size: 11px; color: #555; line-height: 1.6; }
+    .help-step { background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 4px; font-size: 11px; }
   </style>
 </head>
 <body>
 
-  <h1>🏆 大会用スコア管理</h1>
+  <div class="header-area">
+    <h1>🏆 大会用スコア管理</h1>
+    <button class="btn-help" onclick="openHelpModal()">❓ 使い方</button>
+  </div>
 
   <div class="tab-group">
     <button id="tab-reg-btn" class="tab-btn active" onclick="switchTab('reg')">👥 参加者登録・編集</button>
@@ -221,6 +235,63 @@
     </div>
   </div>
 
+  <!-- 使い方解説モーダル（新機能！） -->
+  <div id="help-modal" class="modal-overlay" onclick="closeHelpModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align- items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+        <h3 style="font-size: 14px; margin: 0; color:#17a2b8;">📖 大会ツールの使い方ガイド</h3>
+        <button onclick="closeHelpModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🔰 大会進行の全体の流れ</div>
+        <div class="help-text">
+          <span class="help-step">1. 参加者登録</span> 「👥 参加者登録・編集」タブで大会ID（日付等）を設定し、名簿を登録。<br>
+          <span class="help-step">2. 前半戦入力</span> 各卓で「前半」を選択し、3局打ってスコアを送信。<br>
+          <span class="help-step">3. 後半卓組み</span> 「🔀 後半卓組み確認」ボタンで前半の順位に応じた後半の組み合わせを確認。<br>
+          <span class="help-step">4. 後半戦・チップ入力</span> 「後半」を選択して3局打って送信し、最後に最終持ちチップ数を入力。<br>
+          <span class="help-step">5. 全体集計</span> 「📊 全体集計結果」タブでパスワード（<code>maruko</code>）を入れて最終結果を確認。
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">📝 スコア入力と計算ルール</div>
+        <div class="help-text">
+          ・<b>持ち点入力:</b> 38,500点の場合 ➔ <code>385</code> と上位3桁を入力。<br>
+          ・<b>自動計算:</b> ウマ（+20, +10, -10, -20）とオカ（30,000点返し）が自動計算されます。<br>
+          ・<b>データ送信:</b> 各節「3局分」確定させると送信ボタンが押せるようになります。
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🔀 後半戦の卓組みルール</div>
+        <div class="help-text">
+          全卓が前半3局の送信を完了すると自動計算されます。<br>
+          ・<b>A卓:</b> A卓1位、A卓3位、B卓2位、B卓4位<br>
+          ・<b>B卓:</b> B卓1位、B卓3位、C卓2位、C卓4位<br>
+          ・<b>C卓:</b> C卓1位、C卓3位、A卓2位、A卓4位
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">💴 レート＆収支計算</div>
+        <div class="help-text">
+          ・<b>点数レート:</b> テンピン（1pt = 100円）固定<br>
+          ・<b>チップレート:</b> 1枚 = 200円固定<br>
+          ※集計画面で個人トータルスコア表とチップ込みの精算金額表が自動計算・表示されます。
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">✏️ 誤入力の修正方法</div>
+        <div class="help-text">
+          ・<b>送信前:</b> スコア表の行をタップすると削除できます。<br>
+          ・<b>送信後:</b> 「📋 送信済み履歴」ボタンから該当の局を選び「編集」を押すと持ち点の修正式・再計算が可能です。
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 各卓送信済み履歴確認モーダル -->
   <div id="logs-modal" class="modal-overlay" onclick="closeLogsModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
@@ -243,7 +314,7 @@
     </div>
   </div>
 
-  <!-- スコア直接編集モーダル（新機能！） -->
+  <!-- スコア直接編集モーダル -->
   <div id="edit-modal" class="modal-overlay" onclick="closeEditModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
@@ -280,13 +351,21 @@
     let rawScoreHistory = [];
     let currentPlayersList = [];
     let fetchedSummaryData = [];
-    let currentEditingLogData = null; // 編集対象キャッシュ
+    let currentEditingLogData = null;
 
     window.onload = () => {
       loadState();
       updateChipControl();
       updateSendButtonControl();
     };
+
+    function openHelpModal() {
+      document.getElementById('help-modal').style.display = 'flex';
+    }
+
+    function closeHelpModal() {
+      document.getElementById('help-modal').style.display = 'none';
+    }
 
     function syncTournamentId(val) {
       document.getElementById('reg-tournament-id').value = val;
@@ -795,7 +874,6 @@
       document.getElementById('pairing-modal').style.display = 'none';
     }
 
-    // サーバー送信済みログの表示
     async function showServerLogsModal() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -822,7 +900,6 @@
             html += `<div style="font-weight:bold; color:#007bff; font-size:13px; margin-bottom:6px;">📍 ${groupKey}</div>`;
             
             list.forEach(item => {
-              // ログデータをJSON文字列にしてボタンへ渡す
               const jsonStr = encodeURIComponent(JSON.stringify(item));
 
               html += `<table style="margin-bottom:8px; background:white;"><thead><tr>`;
@@ -857,7 +934,6 @@
       }
     }
 
-    // 編集モーダルを開く
     function openEditModal(jsonStr) {
       const item = JSON.parse(decodeURIComponent(jsonStr));
       currentEditingLogData = item;
@@ -869,7 +945,6 @@
       document.getElementById('edit-lbl-p3').textContent = item.p3Name;
       document.getElementById('edit-lbl-p4').textContent = item.p4Name;
 
-      // 生の持ち点を上位3桁の表示に（例: 38500 -> 385）
       document.getElementById('edit-s1').value = item.p1Raw / 100;
       document.getElementById('edit-s2').value = item.p2Raw / 100;
       document.getElementById('edit-s3').value = item.p3Raw / 100;
@@ -878,7 +953,6 @@
       document.getElementById('edit-modal').style.display = 'flex';
     }
 
-    // 編集したスコアの保存
     async function saveEditedLog() {
       if (!currentEditingLogData) return;
 
@@ -917,7 +991,7 @@
         if (data.status === 'success') {
           alert('スコアの修正・再計算を保存しました！');
           closeEditModal();
-          showServerLogsModal(); // 履歴モーダルの再読み込み
+          showServerLogsModal();
         } else {
           alert('修正保存エラー: ' + data.message);
         }
