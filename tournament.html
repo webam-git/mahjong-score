@@ -20,6 +20,8 @@
     .btn-chip { background-color: #fd7e14; color: white; margin-top: 10px; }
     .btn-sub { background-color: #6c757d; font-size: 11px; padding: 6px 12px; width: auto; }
     .btn-del { background-color: #dc3545; color: white; padding: 2px 6px; font-size: 10px; border-radius: 3px; border: none; cursor: pointer; }
+    .btn-reset { background-color: #6c757d; color: white; font-size: 11px; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-pair { background-color: #20c997; color: white; font-size: 11px; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; flex: 1; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
     .tab-group { display: flex; gap: 6px; margin-bottom: 15px; }
     .tab-btn { flex: 1; padding: 8px 4px; background: #dee2e6; color: #495057; border: none; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
@@ -45,6 +47,10 @@
     .modal-content {
       background: white; padding: 15px; border-radius: 8px; max-width: 95%; width: 500px;
       max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .pair-card {
+      background: #f8f9fa; border: 1px solid #ced4da; border-radius: 6px;
+      padding: 10px; margin-bottom: 10px;
     }
   </style>
 </head>
@@ -77,7 +83,10 @@
   <!-- 1. スコア入力セクション -->
   <div id="section-input" style="display:none;">
     <div class="card">
-      <div class="label-sm">大会情報＆卓の選択</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div class="label-sm" style="margin:0;">大会情報＆卓の選択</div>
+        <button type="button" class="btn-reset" onclick="resetFormInputs()">🧹 入力クリア</button>
+      </div>
       <div class="grid-2">
         <div>
           <div style="font-size:10px; color:#888; text-align:center;">大会ID (日付など)</div>
@@ -99,9 +108,10 @@
         </div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; margin: 8px 0; gap:8px;">
+      <div style="display:flex; justify-content:space-between; margin: 8px 0; gap:6px;">
         <button type="button" class="btn-sub" onclick="loadPlayerList()" style="flex:1;">🔄 名簿読み込み</button>
-        <button type="button" class="btn-sub" onclick="showServerLogsModal()" style="flex:1; background-color:#17a2b8;">📋 送信済み各卓履歴</button>
+        <button type="button" class="btn-pair" onclick="showNextPairingModal()">🔀 後半卓組み確認</button>
+        <button type="button" class="btn-sub" onclick="showServerLogsModal()" style="flex:1; background-color:#17a2b8;">📋 送信済み履歴</button>
       </div>
 
       <div class="label-sm">対局プレイヤー（名簿から選択）</div>
@@ -218,6 +228,17 @@
     </div>
   </div>
 
+  <!-- 後半戦組み合わせ確認モーダル（新機能！） -->
+  <div id="pairing-modal" class="modal-overlay" onclick="closePairingModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+        <h3 style="font-size: 14px; margin: 0; color:#20c997;">🔀 後半戦 卓組み組み合わせ</h3>
+        <button onclick="closePairingModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
+      </div>
+      <div id="modal-pairing-body"></div>
+    </div>
+  </div>
+
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
     const POINT_RATE = 100; // テンピン固定
@@ -249,20 +270,31 @@
       saveState();
     }
 
-    // 重複プレイヤー選択の防止制御
+    // フォーム入力値の一括リセット（🧹ボタン）
+    function resetFormInputs() {
+      if (!confirm('選択中のプレイヤーと入力した持ち点をリセットしますか？\n（大会IDは保持されます）')) return;
+
+      ['p1-select','p2-select','p3-select','p4-select'].forEach(id => document.getElementById(id).value = '');
+      ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
+      
+      games = [];
+      rawScoreHistory = [];
+
+      filterDuplicatePlayers();
+      updateHeaderNames();
+      updateChipLabels();
+      renderTable();
+      saveState();
+    }
+
     function filterDuplicatePlayers() {
       const selectIds = ['p1-select', 'p2-select', 'p3-select', 'p4-select'];
       const selectedValues = selectIds.map(id => document.getElementById(id).value);
 
       selectIds.forEach((targetId, targetIdx) => {
         const sel = document.getElementById(targetId);
-        const currentVal = sel.value;
-
-        // 一旦全オプションを取得
         Array.from(sel.options).forEach(opt => {
-          if (!opt.value) return; // 「選択」項目は常に表示
-
-          // 他のプルダウンで選択されている名前は非表示（隠す）
+          if (!opt.value) return;
           const isSelectedElsewhere = selectedValues.some((val, idx) => idx !== targetIdx && val === opt.value);
           opt.style.display = isSelectedElsewhere ? 'none' : 'block';
           opt.disabled = isSelectedElsewhere;
@@ -611,6 +643,112 @@
       } catch(e) {
         alert('チップ送信エラー: ' + e);
       }
+    }
+
+    // 後半戦の卓組み一覧モーダル表示
+    async function showNextPairingModal() {
+      const tId = document.getElementById('tournament-id').value.trim();
+      if (!tId) return alert('大会IDを入力してください');
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "getLogs", tournamentId: tId })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          // 前半のログだけ抽出
+          const firstHalfLogs = data.logs.filter(l => l.phase === '前半');
+
+          // 各卓の消化局数チェック
+          const tables = ['A卓', 'B卓', 'C卓'];
+          const counts = { 'A卓': 0, 'B卓': 0, 'C卓': 0 };
+          const tableScores = { 'A卓': {}, 'B卓': {}, 'C卓': {} };
+
+          firstHalfLogs.forEach(l => {
+            if (counts[l.table] !== undefined) {
+              counts[l.table]++;
+              // スコア加算
+              [
+                { n: l.p1Name, s: l.p1Score },
+                { n: l.p2Name, s: l.p2Score },
+                { n: l.p3Name, s: l.p3Score },
+                { n: l.p4Name, s: l.p4Score }
+              ].forEach(p => {
+                if (p.n) {
+                  if (!tableScores[l.table][p.n]) tableScores[l.table][p.n] = 0;
+                  tableScores[l.table][p.n] += p.s;
+                }
+              });
+            }
+          });
+
+          // 3局消化していない卓があるか確認
+          const unfinished = tables.filter(t => counts[t] < 3);
+
+          if (unfinished.length > 0) {
+            let htmlMsg = `<div style="text-align:center; padding:15px; background:#fff3cd; color:#856404; border-radius:6px; border:1px solid #ffeeba;">`;
+            htmlMsg += `<div style="font-weight:bold; font-size:14px; margin-bottom:8px;">⚠️ まだ前半戦の対局が完了していません</div>`;
+            htmlMsg += `<div style="font-size:12px; line-height:1.6;">全卓が前半3局完了すると後半の卓組みが自動計算されます。<br><br>`;
+            tables.forEach(t => {
+              const status = counts[t] >= 3 ? '✅ 完了' : `⏳ 対局中 (${counts[t]}/3局)`;
+              htmlMsg += `<b>${t}:</b> ${status}<br>`;
+            });
+            htmlMsg += `</div></div>`;
+
+            document.getElementById('modal-pairing-body').innerHTML = htmlMsg;
+            document.getElementById('pairing-modal').style.display = 'flex';
+            return;
+          }
+
+          // 各卓の前半順位を算出 (1位〜4位)
+          const ranks = {};
+          tables.forEach(t => {
+            ranks[t] = Object.keys(tableScores[t])
+              .map(name => ({ name, score: tableScores[t][name] }))
+              .sort((a, b) => b.score - a.score);
+          });
+
+          // 後半卓組みルール
+          // A卓（後半）: A1, A3, B2, B4
+          // B卓（後半）: B1, B3, C2, C4
+          // C卓（後半）: C1, C3, A2, A4
+          const nextA = [ranks['A卓'][0], ranks['A卓'][2], ranks['B卓'][1], ranks['B卓'][3]];
+          const nextB = [ranks['B卓'][0], ranks['B卓'][2], ranks['C卓'][1], ranks['C卓'][3]];
+          const nextC = [ranks['C卓'][0], ranks['C卓'][2], ranks['A卓'][1], ranks['A卓'][3]];
+
+          const renderPairCard = (title, list) => {
+            let card = `<div class="pair-card">`;
+            card += `<div style="font-weight:bold; color:#007bff; font-size:13px; margin-bottom:6px; text-align:center;">📍 ${title}</div>`;
+            card += `<table><thead><tr><th>枠</th><th>名前</th><th>前半成績</th></tr></thead><tbody>`;
+            list.forEach((p, idx) => {
+              card += `<tr>`;
+              card += `<td style="font-size:11px; color:#666;">P${idx+1}</td>`;
+              card += `<td style="font-weight:bold;">${p ? p.name : '未定'}</td>`;
+              card += `<td style="font-size:11px;">${p ? (p.score > 0 ? '+'+p.score : p.score) : '-'}</td>`;
+              card += `</tr>`;
+            });
+            card += `</tbody></table></div>`;
+            return card;
+          };
+
+          let html = '';
+          html += renderPairCard('後半 A卓 （A1, A3, B2, B4）', nextA);
+          html += renderPairCard('後半 B卓 （B1, B3, C2, C4）', nextB);
+          html += renderPairCard('後半 C卓 （C1, C3, A2, A4）', nextC);
+
+          document.getElementById('modal-pairing-body').innerHTML = html;
+          document.getElementById('pairing-modal').style.display = 'flex';
+
+        }
+      } catch(e) {
+        alert('卓組み計算エラー: ' + e);
+      }
+    }
+
+    function closePairingModal() {
+      document.getElementById('pairing-modal').style.display = 'none';
     }
 
     async function showServerLogsModal() {
