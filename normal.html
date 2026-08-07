@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>麻雀スコア計算ツール</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 15px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    h1 {
+      font-size: 1.2rem;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    select, input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      text-align: center;
+      font-size: 14px;
+      background-color: #fff;
+    }
+    select {
+      text-align-last: center;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:active {
+      opacity: 0.8;
+    }
+    .btn-calc {
+      background-color: #007bff;
+      margin-top: 10px;
+    }
+    .btn-info {
+      background-color: #17a2b8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      padding: 5px 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-reset {
+      background-color: #6c757d;
+      margin-top: 15px;
+      font-size: 13px;
+      padding: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #dee2e6;
+      padding: 8px 4px;
+      text-align: center;
+    }
+    th {
+      background-color: #e9ecef;
+    }
+    .score-plus {
+      color: #d9534f;
+      font-weight: bold;
+    }
+    .score-minus {
+      color: #0275d8;
+      font-weight: bold;
+    }
+    #final-result {
+      display: none;
+      margin-top: 15px;
+      background: #eef9f1;
+      border: 1px solid #c3e6cb;
+    }
+    .label-sm {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .rule-info {
+      background-color: #eef2f5;
+      padding: 6px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: #495057;
+      text-align: center;
+    }
+    .table-header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    /* モーダル上部配置設定 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.3); /* 下のスコア表が見やすいように背景をうすめの透過に設定 */
+      justify-content: center;
+      align-items: flex-start; /* 画面上部に寄せる */
+      padding-top: 15px;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 95%;
+      width: 480px;
+      max-height: 50vh; /* 画面半分以下の高さに抑える */
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🀄️ 麻雀スコア計算</h1>
+
+  <!-- 1. レート設定 & プレイヤー名 & 持ち点 -->
+  <div class="card">
+    <div class="label-sm">レート＆チップ設定</div>
+    <div class="grid-2">
+      <div>
+        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">ゲームレート</div>
+        <select id="rate-select" onchange="onRateChange()">
+          <option value="100">テンピン (100円/pt)</option>
+          <option value="50">テンゴ (50円/pt)</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">チップ1枚単価 (円)</div>
+        <input type="number" id="rate-chip" value="200" placeholder="200" inputmode="numeric">
+      </div>
+    </div>
+
+    <!-- レートのすぐ下のウマ説明 -->
+    <div class="rule-info">
+      💡 ウマ 10-20 (ワンツー): 1位 +20 / 2位 +10 / 3位 -10 / 4位 -20
+    </div>
+
+    <div class="label-sm">プレイヤー名</div>
+    <div class="grid">
+      <input type="text" id="p1" placeholder="P1">
+      <input type="text" id="p2" placeholder="P2">
+      <input type="text" id="p3" placeholder="P3">
+      <input type="text" id="p4" placeholder="P4">
+    </div>
+
+    <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
+    <div class="grid">
+      <input type="number" id="s1" placeholder="P1持ち点" inputmode="numeric">
+      <input type="number" id="s2" placeholder="P2持ち点" inputmode="numeric">
+      <input type="number" id="s3" placeholder="P3持ち点" inputmode="numeric">
+      <input type="number" id="s4" placeholder="P4持ち点" inputmode="numeric">
+    </div>
+
+    <button onclick="addGame()">1局のスコアを確定</button>
+  </div>
+
+  <!-- 2. スコア履歴テーブル -->
+  <div class="card">
+    <div class="table-header-flex">
+      <div style="font-size: 12px; color: #666;">※行タップで局データ削除</div>
+      <button class="btn-info" style="width:auto;" onclick="showScoresModal()">📋 持ち点履歴を確認</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>局</th>
+          <th class="p1-name">P1</th>
+          <th class="p2-name">P2</th>
+          <th class="p3-name">P3</th>
+          <th class="p4-name">P4</th>
+        </tr>
+      </thead>
+      <tbody id="score-table-body">
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:bold; background-color:#f1f3f5;">
+          <td>合計</td>
+          <td id="tot-1">0</td>
+          <td id="tot-2">0</td>
+          <td id="tot-3">0</td>
+          <td id="tot-4">0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- 3. チップ入力 & 最終精算 -->
+  <div class="card">
+    <div class="label-sm">チップ獲得枚数 (プラス/マイナス)</div>
+    <div class="grid">
+      <input type="number" id="chip1" placeholder="0" inputmode="numeric">
+      <input type="number" id="chip2" placeholder="0" inputmode="numeric">
+      <input type="number" id="chip3" placeholder="0" inputmode="numeric">
+      <input type="number" id="chip4" placeholder="0" inputmode="numeric">
+    </div>
+    <button class="btn-calc" onclick="calcFinal()">最終スコア＆精算額を確定</button>
+  </div>
+
+  <!-- 最終精算表示領域 -->
+  <div id="final-result" class="card"></div>
+
+  <!-- 新規対局用リセットボタン -->
+  <div style="text-align: center;">
+    <button class="btn-reset" onclick="resetAll()">全データをクリア（新規対局）</button>
+  </div>
+
+  <!-- 持ち点履歴確認用モーダル（画面上部表示） -->
+  <div id="scores-modal" class="modal-overlay" onclick="closeScoresModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h3 style="font-size: 14px; margin: 0;">📋 入力持ち点 履歴</h3>
+        <button onclick="closeScoresModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
+      </div>
+      <div id="modal-scores-body"></div>
+    </div>
+  </div>
+
+  <script>
+    let games = [];
+    let rawScoreHistory = [];
+
+    window.onload = () => {
+      loadState();
+      
+      ['p1','p2','p3','p4'].forEach((id, idx) => {
+        const input = document.getElementById(id);
+        input.addEventListener('input', (e) => {
+          const name = e.target.value || `P${idx+1}`;
+          document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = name);
+          saveState();
+        });
+      });
+
+      ['chip1','chip2','chip3','chip4','rate-chip'].forEach(id => {
+        document.getElementById(id).addEventListener('input', saveState);
+      });
+    };
+
+    function onRateChange() {
+      saveState();
+    }
+
+    function saveState() {
+      const state = {
+        rateScore: document.getElementById('rate-select').value,
+        rateChip: document.getElementById('rate-chip').value,
+        names: ['p1','p2','p3','p4'].map(id => document.getElementById(id).value),
+        chips: ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value),
+        games: games,
+        rawScoreHistory: rawScoreHistory
+      };
+      localStorage.setItem('mahjong_score_data', JSON.stringify(state));
+    }
+
+    function loadState() {
+      const data = localStorage.getItem('mahjong_score_data');
+      if (!data) return;
+
+      try {
+        const state = JSON.parse(data);
+        if (state.rateScore !== undefined) document.getElementById('rate-select').value = state.rateScore;
+        if (state.rateChip !== undefined) document.getElementById('rate-chip').value = state.rateChip;
+        
+        if (state.names) {
+          state.names.forEach((name, idx) => {
+            document.getElementById(`p${idx+1}`).value = name;
+            const displayName = name || `P${idx+1}`;
+            document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = displayName);
+          });
+        }
+        if (state.chips) {
+          state.chips.forEach((chip, idx) => {
+            document.getElementById(`chip${idx+1}`).value = chip;
+          });
+        }
+        if (state.games) games = state.games;
+        if (state.rawScoreHistory) rawScoreHistory = state.rawScoreHistory;
+
+        renderTable();
+      } catch (e) {
+        console.error('復元エラー:', e);
+      }
+    }
+
+    function addGame() {
+      const rawInputs = [
+        document.getElementById('s1').value,
+        document.getElementById('s2').value,
+        document.getElementById('s3').value,
+        document.getElementById('s4').value
+      ];
+
+      if (rawInputs.some(val => val === '')) {
+        return alert('4人分すべての持ち点を入力してください');
+      }
+
+      const actualScores = rawInputs.map(val => Number(val) * 100);
+      rawScoreHistory.push(actualScores);
+
+      let players = rawInputs.map((val, idx) => {
+        let rawScore = Number(val) * 100;
+        let roundedPoint = Math.round(rawScore / 1000) * 1000;
+        return { idx, rawScore, roundedPoint, score: 0 };
+      });
+
+      players.sort((a, b) => b.rawScore - a.rawScore);
+
+      const uma = [20, 10, -10, -20];
+      let subTotal = 0;
+      for (let rank = 3; rank >= 1; rank--) {
+        let p = players[rank];
+        let baseScore = (p.roundedPoint - 30000) / 1000;
+        p.score = baseScore + uma[rank];
+        subTotal += p.score;
+      }
+
+      players[0].score = -subTotal;
+      players.sort((a, b) => a.idx - b.idx);
+
+      games.push(players.map(p => p.score));
+
+      for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).value = '';
+
+      renderTable();
+      saveState();
+    }
+
+    // 表形式で持ち点履歴モーダルを表示
+    function showScoresModal() {
+      if (rawScoreHistory.length === 0) {
+        return alert('まだ入力済みの局データがありません');
+      }
+
+      const names = [
+        document.getElementById('p1').value || 'P1',
+        document.getElementById('p2').value || 'P2',
+        document.getElementById('p3').value || 'P3',
+        document.getElementById('p4').value || 'P4'
+      ];
+
+      let tableHtml = '<table style="margin-top:0;"><thead><tr><th>局</th>';
+      names.forEach(name => {
+        tableHtml += `<th>${name}</th>`;
+      });
+      tableHtml += '</tr></thead><tbody>';
+
+      rawScoreHistory.forEach((scores, idx) => {
+        tableHtml += `<tr><td style="font-weight:bold; color:#007bff;">${idx + 1}局</td>`;
+        scores.forEach(s => {
+          tableHtml += `<td>${s.toLocaleString()}</td>`;
+        });
+        tableHtml += '</tr>';
+      });
+
+      tableHtml += '</tbody></table>';
+
+      document.getElementById('modal-scores-body').innerHTML = tableHtml;
+      document.getElementById('scores-modal').style.display = 'flex';
+    }
+
+    function closeScoresModal() {
+      document.getElementById('scores-modal').style.display = 'none';
+    }
+
+    function deleteGame(index) {
+      if (confirm(`${index + 1}局目のデータを削除しますか？`)) {
+        games.splice(index, 1);
+        rawScoreHistory.splice(index, 1);
+        renderTable();
+        document.getElementById('final-result').style.display = 'none';
+        saveState();
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('score-table-body');
+      tbody.innerHTML = '';
+      let totals = [0, 0, 0, 0];
+
+      games.forEach((g, gameIdx) => {
+        let row = `<tr onclick="deleteGame(${gameIdx})" style="cursor: pointer;" title="タップして削除">`;
+        row += `<td style="font-weight:bold; color:#007bff; text-decoration:underline;">${gameIdx + 1}局</td>`;
+        
+        g.forEach((score, pIdx) => {
+          totals[pIdx] += score;
+          let cls = score > 0 ? 'score-plus' : (score < 0 ? 'score-minus' : '');
+          let fmt = score > 0 ? `+${score}` : score;
+          row += `<td class="${cls}">${fmt}</td>`;
+        });
+        row += '</tr>';
+        tbody.innerHTML += row;
+      });
+
+      totals.forEach((tot, idx) => {
+        let el = document.getElementById(`tot-${idx+1}`);
+        el.textContent = tot > 0 ? `+${tot}` : tot;
+        el.className = tot > 0 ? 'score-plus' : (tot < 0 ? 'score-minus' : '');
+      });
+    }
+
+    function calcFinal() {
+      if (games.length === 0) return alert('対局データがありません');
+
+      let totals = [0, 0, 0, 0];
+      games.forEach(g => g.forEach((s, idx) => totals[idx] += s));
+
+      const rateScore = Number(document.getElementById('rate-select').value) || 0;
+      const rateChip = Number(document.getElementById('rate-chip').value) || 0;
+
+      const names = [
+        document.getElementById('p1').value || 'P1',
+        document.getElementById('p2').value || 'P2',
+        document.getElementById('p3').value || 'P3',
+        document.getElementById('p4').value || 'P4'
+      ];
+
+      const chips = [
+        Number(document.getElementById('chip1').value) || 0,
+        Number(document.getElementById('chip2').value) || 0,
+        Number(document.getElementById('chip3').value) || 0,
+        Number(document.getElementById('chip4').value) || 0
+      ];
+
+      let html = '<div style="margin-bottom:10px;">🏆 最終精算結果</div><div style="font-size:14px; text-align:left;">';
+
+      names.forEach((name, i) => {
+        let scoreMoney = totals[i] * rateScore;
+        let chipMoney = chips[i] * rateChip;
+        let totalMoney = scoreMoney + chipMoney;
+
+        let sign = totalMoney > 0 ? '+' : '';
+        let color = totalMoney > 0 ? '#d9534f' : (totalMoney < 0 ? '#0275d8' : '#333');
+
+        html += `<div style="margin:5px 0; display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding-bottom:3px;">
+          <span><b>${name}</b> (スコア:${totals[i]} / チップ:${chips[i]}枚):</span>
+          <span style="color:${color}; font-weight:bold; margin-left:auto;">${sign}${totalMoney.toLocaleString()} 円</span>
+        </div>`;
+      });
+
+      html += '</div>';
+
+      const resBox = document.getElementById('final-result');
+      resBox.innerHTML = html;
+      resBox.style.display = 'block';
+    }
+
+    function resetAll() {
+      if (confirm('すべてのデータをクリアして新しい対局を始めますか？')) {
+        localStorage.removeItem('mahjong_score_data');
+        games = [];
+        rawScoreHistory = [];
+        document.getElementById('rate-select').value = '100';
+        document.getElementById('rate-chip').value = '200';
+        ['p1','p2','p3','p4','s1','s2','s3','s4','chip1','chip2','chip3','chip4'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        ['p1','p2','p3','p4'].forEach((id, idx) => {
+          document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = `P${idx+1}`);
+        });
+        renderTable();
+        document.getElementById('final-result').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
