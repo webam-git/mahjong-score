@@ -3,96 +3,224 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>通常対局スコア集計</title>
+  <title>麻雀スコア計算ツール</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f8f9fa; color: #333; }
-    
-    /* ヘッダーエリア */
-    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
-    .header-area h1 { font-size: 1.2rem; margin: 0 auto; text-align: center; }
-    .btn-help { background-color: #17a2b8; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; position: absolute; right: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 15px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    h1 {
+      font-size: 1.2rem;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    select, input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      text-align: center;
+      font-size: 14px;
+      background-color: #fff;
+    }
+    select {
+      text-align-last: center;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:active {
+      opacity: 0.8;
+    }
+    .btn-calc {
+      background-color: #007bff;
+      margin-top: 10px;
+    }
+    .btn-info {
+      background-color: #17a2b8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      padding: 5px 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-reset {
+      background-color: #6c757d;
+      margin-top: 15px;
+      font-size: 13px;
+      padding: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #dee2e6;
+      padding: 8px 4px;
+      text-align: center;
+    }
+    th {
+      background-color: #e9ecef;
+    }
+    .score-plus {
+      color: #d9534f;
+      font-weight: bold;
+    }
+    .score-minus {
+      color: #0275d8;
+      font-weight: bold;
+    }
+    #final-result {
+      display: none;
+      margin-top: 15px;
+      background: #eef9f1;
+      border: 1px solid #c3e6cb;
+    }
+    .label-sm {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .rule-info {
+      background-color: #eef2f5;
+      padding: 6px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: #495057;
+      text-align: center;
+    }
+    .table-header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
 
-    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; }
-    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 14px; background: #fff; }
-    select { text-align-last: center; }
-    button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
-    button:active { opacity: 0.8; }
-    .btn-send { background-color: #e0a800; color: #fff; margin-top: 10px; }
-    .btn-reset { background-color: #6c757d; color: white; font-size: 10px; padding: 3px 8px; border: none; border-radius: 4px; cursor: pointer; width: auto; }
-    .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
-    th, td { border: 1px solid #dee2e6; padding: 6px 2px; text-align: center; }
-    th { background: #e9ecef; font-size: 11px; }
-    .score-plus { color: #d9534f; font-weight: bold; }
-    .score-minus { color: #0275d8; font-weight: bold; }
-
-    /* モーダル表示設定 */
+    /* モーダル上部配置設定 */
     .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4); justify-content: center; align-items: flex-start;
-      padding-top: 15px; z-index: 1000;
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.3); /* 下のスコア表が見やすいように背景をうすめの透過に設定 */
+      justify-content: center;
+      align-items: flex-start; /* 画面上部に寄せる */
+      padding-top: 15px;
+      z-index: 1000;
     }
     .modal-content {
-      background: white; padding: 15px; border-radius: 8px; max-width: 95%; width: 500px;
-      max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 95%;
+      width: 480px;
+      max-height: 50vh; /* 画面半分以下の高さに抑える */
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .help-section { border-bottom: 1px solid #eee; padding: 10px 0; }
-    .help-title { font-weight: bold; font-size: 13px; color: #007bff; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
-    .help-text { font-size: 11px; color: #555; line-height: 1.6; }
-    .help-step { background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 4px; font-size: 11px; }
   </style>
 </head>
 <body>
 
-  <div class="header-area">
-    <h1>🀄 通常対局スコア計算</h1>
-    <button class="btn-help" onclick="openHelpModal()" title="使い方">❓</button>
-  </div>
+  <h1>🀄️ 麻雀スコア計算</h1>
 
+  <!-- 1. レート設定 & プレイヤー名 & 持ち点 -->
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-      <div class="label-sm" style="margin:0;">対局設定＆プレイヤー選択</div>
-      <button type="button" class="btn-reset" onclick="resetFormInputs()">🧹 入力クリア</button>
+    <div class="label-sm">レート＆チップ設定</div>
+    <div class="grid-2">
+      <div>
+        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">ゲームレート</div>
+        <select id="rate-select" onchange="onRateChange()">
+          <option value="100">テンピン (100円/pt)</option>
+          <option value="50">テンゴ (50円/pt)</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">チップ1枚単価 (円)</div>
+        <input type="number" id="rate-chip" value="200" placeholder="200" inputmode="numeric">
+      </div>
     </div>
 
-    <div class="label-sm">対局プレイヤー（4名選択）</div>
+    <!-- レートのすぐ下のウマ説明 -->
+    <div class="rule-info">
+      💡 ウマ 10-20 (ワンツー): 1位 +20 / 2位 +10 / 3位 -10 / 4位 -20
+    </div>
+
+    <div class="label-sm">プレイヤー名</div>
     <div class="grid">
-      <select id="p1-select" onchange="onPlayerChange()"><option value="">P1</option></select>
-      <select id="p2-select" onchange="onPlayerChange()"><option value="">P2</option></select>
-      <select id="p3-select" onchange="onPlayerChange()"><option value="">P3</option></select>
-      <select id="p4-select" onchange="onPlayerChange()"><option value="">P4</option></select>
+      <input type="text" id="p1" placeholder="P1">
+      <input type="text" id="p2" placeholder="P2">
+      <input type="text" id="p3" placeholder="P3">
+      <input type="text" id="p4" placeholder="P4">
     </div>
 
     <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
     <div class="grid">
-      <input type="number" id="s1" placeholder="持ち点" inputmode="numeric">
-      <input type="number" id="s2" placeholder="持ち点" inputmode="numeric">
-      <input type="number" id="s3" placeholder="持ち点" inputmode="numeric">
-      <input type="number" id="s4" placeholder="持ち点" inputmode="numeric">
+      <input type="number" id="s1" placeholder="P1持ち点" inputmode="numeric">
+      <input type="number" id="s2" placeholder="P2持ち点" inputmode="numeric">
+      <input type="number" id="s3" placeholder="P3持ち点" inputmode="numeric">
+      <input type="number" id="s4" placeholder="P4持ち点" inputmode="numeric">
     </div>
 
     <button onclick="addGame()">1局のスコアを確定</button>
   </div>
 
-  <!-- 一時スコア確認カード -->
+  <!-- 2. スコア履歴テーブル -->
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-      <div style="font-size:12px; font-weight:bold;">送信前の入力スコア</div>
-      <div style="font-size:11px; color:#666;">※行タップで削除</div>
+    <div class="table-header-flex">
+      <div style="font-size: 12px; color: #666;">※行タップで局データ削除</div>
+      <button class="btn-info" style="width:auto;" onclick="showScoresModal()">📋 持ち点履歴を確認</button>
     </div>
     <table>
       <thead>
         <tr>
           <th>局</th>
-          <th id="th-p1">P1</th>
-          <th id="th-p2">P2</th>
-          <th id="th-p3">P3</th>
-          <th id="th-p4">P4</th>
+          <th class="p1-name">P1</th>
+          <th class="p2-name">P2</th>
+          <th class="p3-name">P3</th>
+          <th class="p4-name">P4</th>
         </tr>
       </thead>
-      <tbody id="score-table-body"></tbody>
+      <tbody id="score-table-body">
+      </tbody>
       <tfoot>
         <tr style="font-weight:bold; background-color:#f1f3f5;">
           <td>合計</td>
@@ -103,103 +231,117 @@
         </tr>
       </tfoot>
     </table>
-    <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへ全局データ送信</button>
   </div>
 
-  <!-- 使い方ガイドモーダル -->
-  <div id="help-modal" class="modal-overlay" onclick="closeHelpModal(event)">
+  <!-- 3. チップ入力 & 最終精算 -->
+  <div class="card">
+    <div class="label-sm">チップ獲得枚数 (プラス/マイナス)</div>
+    <div class="grid">
+      <input type="number" id="chip1" placeholder="0" inputmode="numeric">
+      <input type="number" id="chip2" placeholder="0" inputmode="numeric">
+      <input type="number" id="chip3" placeholder="0" inputmode="numeric">
+      <input type="number" id="chip4" placeholder="0" inputmode="numeric">
+    </div>
+    <button class="btn-calc" onclick="calcFinal()">最終スコア＆精算額を確定</button>
+  </div>
+
+  <!-- 最終精算表示領域 -->
+  <div id="final-result" class="card"></div>
+
+  <!-- 新規対局用リセットボタン -->
+  <div style="text-align: center;">
+    <button class="btn-reset" onclick="resetAll()">全データをクリア（新規対局）</button>
+  </div>
+
+  <!-- 持ち点履歴確認用モーダル（画面上部表示） -->
+  <div id="scores-modal" class="modal-overlay" onclick="closeScoresModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
-        <h3 style="font-size: 14px; margin: 0; color:#17a2b8;">📖 通常対局ツールの使い方</h3>
-        <button onclick="closeHelpModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h3 style="font-size: 14px; margin: 0;">📋 入力持ち点 履歴</h3>
+        <button onclick="closeScoresModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
       </div>
-
-      <div class="help-section">
-        <div class="help-title">🔰 基本的な入力手順</div>
-        <div class="help-text">
-          <span class="help-step">1. プレイヤー選択</span> 対局する4人のプレイヤーを選択。<br>
-          <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code>）。<br>
-          <span class="help-step">3. スコア確定</span> 「1局のスコアを確定」を押してテーブルに追加。<br>
-          <span class="help-step">4. サーバー送信</span> 最終的に「📤 集計サーバーへ全局データ送信」を押してスプレッドシートへ送信・記録します。
-        </div>
-      </div>
-
-      <div class="help-section">
-        <div class="help-title">📝 点数・スコア計算ルール</div>
-        <div class="help-text">
-          ・<b>基準点:</b> 30,000点返し（オカ含む）<br>
-          ・<b>ウマ設定:</b> 1位 +20 / 2位 +10 / 3位 -10 / 4位 -20<br>
-          ・<b>同点時:</b> 同点の場合は上位枠（P1に近い側）が優勢となります。
-        </div>
-      </div>
-
-      <div class="help-section">
-        <div class="help-title">✏️ 誤入力の消去・リセット</div>
-        <div class="help-text">
-          ・<b>入力間違い:</b> スコア一覧の該当する行をタップすると削除できます。<br>
-          ・<b>フォームリセット:</b> 右上の「🧹 入力クリア」を押すと選択・入力状態をクリアできます。
-        </div>
-      </div>
+      <div id="modal-scores-body"></div>
     </div>
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
     let games = [];
     let rawScoreHistory = [];
 
-    function openHelpModal() {
-      document.getElementById('help-modal').style.display = 'flex';
-    }
-
-    function closeHelpModal() {
-      document.getElementById('help-modal').style.display = 'none';
-    }
-
-    function onPlayerChange() {
-      filterDuplicatePlayers();
-      updateHeaderNames();
-    }
-
-    function resetFormInputs() {
-      if (!confirm('選択中のプレイヤーと持ち点をクリアしますか？')) return;
-      ['p1-select','p2-select','p3-select','p4-select'].forEach(id => document.getElementById(id).value = '');
-      ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
-      games = [];
-      rawScoreHistory = [];
-      filterDuplicatePlayers();
-      updateHeaderNames();
-      renderTable();
-    }
-
-    function filterDuplicatePlayers() {
-      const selectIds = ['p1-select', 'p2-select', 'p3-select', 'p4-select'];
-      const selectedValues = selectIds.map(id => document.getElementById(id).value);
-
-      selectIds.forEach((targetId, targetIdx) => {
-        const sel = document.getElementById(targetId);
-        Array.from(sel.options).forEach(opt => {
-          if (!opt.value) return;
-          const isSelectedElsewhere = selectedValues.some((val, idx) => idx !== targetIdx && val === opt.value);
-          opt.style.display = isSelectedElsewhere ? 'none' : 'block';
-          opt.disabled = isSelectedElsewhere;
+    window.onload = () => {
+      loadState();
+      
+      ['p1','p2','p3','p4'].forEach((id, idx) => {
+        const input = document.getElementById(id);
+        input.addEventListener('input', (e) => {
+          const name = e.target.value || `P${idx+1}`;
+          document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = name);
+          saveState();
         });
       });
+
+      ['chip1','chip2','chip3','chip4','rate-chip'].forEach(id => {
+        document.getElementById(id).addEventListener('input', saveState);
+      });
+    };
+
+    function onRateChange() {
+      saveState();
     }
 
-    function updateHeaderNames() {
-      const names = ['p1-select','p2-select','p3-select','p4-select'].map((id, idx) => {
-        const val = document.getElementById(id).value;
-        return val || `P${idx+1}`;
-      });
-      names.forEach((n, i) => {
-        document.getElementById(`th-p${i+1}`).textContent = n;
-      });
+    function saveState() {
+      const state = {
+        rateScore: document.getElementById('rate-select').value,
+        rateChip: document.getElementById('rate-chip').value,
+        names: ['p1','p2','p3','p4'].map(id => document.getElementById(id).value),
+        chips: ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value),
+        games: games,
+        rawScoreHistory: rawScoreHistory
+      };
+      localStorage.setItem('mahjong_score_data', JSON.stringify(state));
+    }
+
+    function loadState() {
+      const data = localStorage.getItem('mahjong_score_data');
+      if (!data) return;
+
+      try {
+        const state = JSON.parse(data);
+        if (state.rateScore !== undefined) document.getElementById('rate-select').value = state.rateScore;
+        if (state.rateChip !== undefined) document.getElementById('rate-chip').value = state.rateChip;
+        
+        if (state.names) {
+          state.names.forEach((name, idx) => {
+            document.getElementById(`p${idx+1}`).value = name;
+            const displayName = name || `P${idx+1}`;
+            document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = displayName);
+          });
+        }
+        if (state.chips) {
+          state.chips.forEach((chip, idx) => {
+            document.getElementById(`chip${idx+1}`).value = chip;
+          });
+        }
+        if (state.games) games = state.games;
+        if (state.rawScoreHistory) rawScoreHistory = state.rawScoreHistory;
+
+        renderTable();
+      } catch (e) {
+        console.error('復元エラー:', e);
+      }
     }
 
     function addGame() {
-      const rawInputs = ['s1','s2','s3','s4'].map(id => document.getElementById(id).value);
-      if (rawInputs.some(val => val === '')) return alert('4人全員の持ち点を入力してください');
+      const rawInputs = [
+        document.getElementById('s1').value,
+        document.getElementById('s2').value,
+        document.getElementById('s3').value,
+        document.getElementById('s4').value
+      ];
+
+      if (rawInputs.some(val => val === '')) {
+        return alert('4人分すべての持ち点を入力してください');
+      }
 
       const actualScores = rawInputs.map(val => Number(val) * 100);
       rawScoreHistory.push(actualScores);
@@ -211,13 +353,16 @@
       });
 
       players.sort((a, b) => b.rawScore - a.rawScore);
+
       const uma = [20, 10, -10, -20];
       let subTotal = 0;
       for (let rank = 3; rank >= 1; rank--) {
         let p = players[rank];
-        p.score = ((p.roundedPoint - 30000) / 1000) + uma[rank];
+        let baseScore = (p.roundedPoint - 30000) / 1000;
+        p.score = baseScore + uma[rank];
         subTotal += p.score;
       }
+
       players[0].score = -subTotal;
       players.sort((a, b) => a.idx - b.idx);
 
@@ -226,6 +371,44 @@
       for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).value = '';
 
       renderTable();
+      saveState();
+    }
+
+    // 表形式で持ち点履歴モーダルを表示
+    function showScoresModal() {
+      if (rawScoreHistory.length === 0) {
+        return alert('まだ入力済みの局データがありません');
+      }
+
+      const names = [
+        document.getElementById('p1').value || 'P1',
+        document.getElementById('p2').value || 'P2',
+        document.getElementById('p3').value || 'P3',
+        document.getElementById('p4').value || 'P4'
+      ];
+
+      let tableHtml = '<table style="margin-top:0;"><thead><tr><th>局</th>';
+      names.forEach(name => {
+        tableHtml += `<th>${name}</th>`;
+      });
+      tableHtml += '</tr></thead><tbody>';
+
+      rawScoreHistory.forEach((scores, idx) => {
+        tableHtml += `<tr><td style="font-weight:bold; color:#007bff;">${idx + 1}局</td>`;
+        scores.forEach(s => {
+          tableHtml += `<td>${s.toLocaleString()}</td>`;
+        });
+        tableHtml += '</tr>';
+      });
+
+      tableHtml += '</tbody></table>';
+
+      document.getElementById('modal-scores-body').innerHTML = tableHtml;
+      document.getElementById('scores-modal').style.display = 'flex';
+    }
+
+    function closeScoresModal() {
+      document.getElementById('scores-modal').style.display = 'none';
     }
 
     function deleteGame(index) {
@@ -233,6 +416,8 @@
         games.splice(index, 1);
         rawScoreHistory.splice(index, 1);
         renderTable();
+        document.getElementById('final-result').style.display = 'none';
+        saveState();
       }
     }
 
@@ -262,38 +447,67 @@
       });
     }
 
-    async function sendToSheet() {
-      if (games.length === 0) return alert('確定済みの局データがありません');
-      const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
-      if (names.some(n => !n)) return alert('プレイヤーを全員選択してください');
+    function calcFinal() {
+      if (games.length === 0) return alert('対局データがありません');
 
-      if (!confirm(`確定済みの ${games.length} 局分のデータを送信しますか？`)) return;
+      let totals = [0, 0, 0, 0];
+      games.forEach(g => g.forEach((s, idx) => totals[idx] += s));
 
-      try {
-        for (let i = 0; i < games.length; i++) {
-          const g = games[i];
-          const raw = rawScoreHistory[i];
+      const rateScore = Number(document.getElementById('rate-select').value) || 0;
+      const rateChip = Number(document.getElementById('rate-chip').value) || 0;
 
-          const payload = {
-            action: "submitScore",
-            gameNum: i + 1,
-            p1Name: names[0], p1Score: g[0], p1Raw: raw[0],
-            p2Name: names[1], p2Score: g[1], p2Raw: raw[1],
-            p3Name: names[2], p3Score: g[2], p3Raw: raw[2],
-            p4Name: names[3], p4Score: g[3], p4Raw: raw[3],
-          };
+      const names = [
+        document.getElementById('p1').value || 'P1',
+        document.getElementById('p2').value || 'P2',
+        document.getElementById('p3').value || 'P3',
+        document.getElementById('p4').value || 'P4'
+      ];
 
-          await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-        }
+      const chips = [
+        Number(document.getElementById('chip1').value) || 0,
+        Number(document.getElementById('chip2').value) || 0,
+        Number(document.getElementById('chip3').value) || 0,
+        Number(document.getElementById('chip4').value) || 0
+      ];
 
-        alert(`合計 ${games.length} 局分のデータが集計サーバーへ正常に送信されました！`);
-        ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
+      let html = '<div style="margin-bottom:10px;">🏆 最終精算結果</div><div style="font-size:14px; text-align:left;">';
+
+      names.forEach((name, i) => {
+        let scoreMoney = totals[i] * rateScore;
+        let chipMoney = chips[i] * rateChip;
+        let totalMoney = scoreMoney + chipMoney;
+
+        let sign = totalMoney > 0 ? '+' : '';
+        let color = totalMoney > 0 ? '#d9534f' : (totalMoney < 0 ? '#0275d8' : '#333');
+
+        html += `<div style="margin:5px 0; display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding-bottom:3px;">
+          <span><b>${name}</b> (スコア:${totals[i]} / チップ:${chips[i]}枚):</span>
+          <span style="color:${color}; font-weight:bold; margin-left:auto;">${sign}${totalMoney.toLocaleString()} 円</span>
+        </div>`;
+      });
+
+      html += '</div>';
+
+      const resBox = document.getElementById('final-result');
+      resBox.innerHTML = html;
+      resBox.style.display = 'block';
+    }
+
+    function resetAll() {
+      if (confirm('すべてのデータをクリアして新しい対局を始めますか？')) {
+        localStorage.removeItem('mahjong_score_data');
         games = [];
         rawScoreHistory = [];
+        document.getElementById('rate-select').value = '100';
+        document.getElementById('rate-chip').value = '200';
+        ['p1','p2','p3','p4','s1','s2','s3','s4','chip1','chip2','chip3','chip4'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        ['p1','p2','p3','p4'].forEach((id, idx) => {
+          document.querySelectorAll(`.p${idx+1}-name`).forEach(el => el.textContent = `P${idx+1}`);
+        });
         renderTable();
-
-      } catch(e) {
-        alert('送信エラー: ' + e);
+        document.getElementById('final-result').style.display = 'none';
       }
     }
   </script>
