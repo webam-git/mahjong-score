@@ -18,6 +18,7 @@
     .btn-dash { background-color: #17a2b8; margin-top: 10px; }
     .btn-reg { background-color: #6f42c1; margin-top: 10px; }
     .btn-sub { background-color: #6c757d; font-size: 11px; padding: 6px 12px; width: auto; }
+    .btn-del { background-color: #dc3545; color: white; padding: 2px 6px; font-size: 10px; border-radius: 3px; border: none; cursor: pointer; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
     .tab-group { display: flex; gap: 6px; margin-bottom: 15px; }
     .tab-btn { flex: 1; padding: 8px 4px; background: #dee2e6; color: #495057; border: none; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
@@ -454,7 +455,7 @@
       }
     }
 
-    // サーバーに送信済みの各卓ログを取得してモーダル表示
+    // サーバーログ取得・表示
     async function showServerLogsModal() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -467,7 +468,6 @@
         const data = await res.json();
 
         if (data.status === 'success' && data.logs.length > 0) {
-          // 卓・節ごとにグループ化
           const grouped = {};
           data.logs.forEach(log => {
             const key = `${log.table} (${log.phase})`;
@@ -483,7 +483,7 @@
             
             list.forEach(item => {
               html += `<table style="margin-bottom:8px; background:white;"><thead><tr>`;
-              html += `<th>局</th><th>${item.p1Name}</th><th>${item.p2Name}</th><th>${item.p3Name}</th><th>${item.p4Name}</th></tr></thead><tbody>`;
+              html += `<th>局</th><th>${item.p1Name}</th><th>${item.p2Name}</th><th>${item.p3Name}</th><th>${item.p4Name}</th><th>操作</th></tr></thead><tbody>`;
               
               let p1Class = item.p1Score > 0 ? 'score-plus' : (item.p1Score < 0 ? 'score-minus' : '');
               let p2Class = item.p2Score > 0 ? 'score-plus' : (item.p2Score < 0 ? 'score-minus' : '');
@@ -496,6 +496,7 @@
               html += `<td class="${p2Class}">${item.p2Score > 0 ? '+'+item.p2Score : item.p2Score}<br><span style="font-size:10px; color:#888;">(${item.p2Raw}点)</span></td>`;
               html += `<td class="${p3Class}">${item.p3Score > 0 ? '+'+item.p3Score : item.p3Score}<br><span style="font-size:10px; color:#888;">(${item.p3Raw}点)</span></td>`;
               html += `<td class="${p4Class}">${item.p4Score > 0 ? '+'+item.p4Score : item.p4Score}<br><span style="font-size:10px; color:#888;">(${item.p4Raw}点)</span></td>`;
+              html += `<td><button class="btn-del" onclick="deleteServerLog(${item.rowIndex}, '${groupKey}', ${item.gameNum})">削除</button></td>`;
               html += `</tr></tbody></table>`;
             });
 
@@ -510,6 +511,27 @@
         }
       } catch(e) {
         alert('ログ取得エラー: ' + e);
+      }
+    }
+
+    // サーバー上の指定ログを削除
+    async function deleteServerLog(rowIndex, groupKey, gameNum) {
+      if (!confirm(`【${groupKey} の ${gameNum}局目】の送信済みデータを削除しますか？\n※削除すると集計結果からも即座に差し引かれます。`)) return;
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "deleteLog", rowIndex: rowIndex })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('該当データを削除しました！');
+          showServerLogsModal(); // モーダル再読み込み
+        } else {
+          alert('削除処理エラー: ' + data.message);
+        }
+      } catch(e) {
+        alert('削除エラー: ' + e);
       }
     }
 
