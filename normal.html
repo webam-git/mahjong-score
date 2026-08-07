@@ -14,7 +14,6 @@
       color: #333;
     }
     
-    /* ヘッダーエリア（タイトル中央揃え & 右端コンパクトボタン） */
     .header-area {
       display: flex;
       justify-content: space-between;
@@ -160,7 +159,6 @@
       margin-bottom: 4px;
     }
 
-    /* モーダル共通設定 */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -183,7 +181,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
-    /* 使い方ガイド用スタイル */
     .help-section {
       border-bottom: 1px solid #eee;
       padding: 10px 0;
@@ -222,22 +219,21 @@
 
   <!-- 1. レート設定 & プレイヤー名 & 持ち点 -->
   <div class="card">
-    <div class="label-sm">レート＆チップ設定</div>
+    <div class="label-sm">ポイント＆チップ設定</div>
     <div class="grid-2">
       <div>
-        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">ゲームレート</div>
+        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">ポイント倍率</div>
         <select id="rate-select" onchange="onRateChange()">
-          <option value="100">テンピン (100円/pt)</option>
-          <option value="50">テンゴ (50円/pt)</option>
+          <option value="100">100pt/点 (レート 1.0)</option>
+          <option value="50">50pt/点 (レート 0.5)</option>
         </select>
       </div>
       <div>
-        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">チップ1枚単価 (円)</div>
+        <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">チップ1枚 (pt)</div>
         <input type="number" id="rate-chip" value="200" placeholder="200" inputmode="numeric">
       </div>
     </div>
 
-    <!-- レートのすぐ下のウマ説明 -->
     <div class="rule-info">
       💡 ウマ 10-20 (ワンツー): 1位 +20 / 2位 +10 / 3位 -10 / 4位 -20
     </div>
@@ -300,7 +296,7 @@
       <input type="number" id="chip3" placeholder="0" inputmode="numeric">
       <input type="number" id="chip4" placeholder="0" inputmode="numeric">
     </div>
-    <button class="btn-calc" onclick="calcFinal()">最終スコア＆精算額を確定</button>
+    <button class="btn-calc" onclick="calcFinal()">最終スコア＆精算ptを確定</button>
   </div>
 
   <!-- 最終精算表示領域 -->
@@ -322,10 +318,10 @@
       <div class="help-section">
         <div class="help-title">🔰 基本的な手順</div>
         <div class="help-text">
-          <span class="help-step">1. 設定・名前</span> レート選択、プレイヤー名を入力。<br>
+          <span class="help-step">1. 設定・名前</span> 倍率選択、プレイヤー名を入力。<br>
           <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code>）。<br>
           <span class="help-step">3. 局の確定</span> 「1局のスコアを確定」を押すと自動で計算・蓄積されます。<br>
-          <span class="help-step">4. 最終精算</span> 対局終了後、チップ獲得枚数を入力して「最終スコア＆精算額を確定」を押します。
+          <span class="help-step">4. 最終精算</span> 対局終了後、チップ獲得枚数を入力して「最終スコア＆精算ptを確定」を押します。
         </div>
       </div>
 
@@ -586,7 +582,7 @@
 
         html += `<div style="margin:5px 0; display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding-bottom:3px;">
           <span><b>${name}</b> (スコア:${totals[i]} / チップ:${chips[i]}枚):</span>
-          <span style="color:${color}; font-weight:bold; margin-left:auto;">${sign}${totalMoney.toLocaleString()} 円</span>
+          <span style="color:${color}; font-weight:bold; margin-left:auto;">${sign}${totalMoney.toLocaleString()} pt</span>
         </div>`;
       });
 
