@@ -7,10 +7,10 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f8f9fa; color: #333; }
     
-    /* ヘッダーエリア */
-    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .header-area h1 { font-size: 1.2rem; margin: 0; }
-    .btn-help { background-color: #17a2b8; color: white; border: none; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    /* ヘッダーエリア（タイトル中央揃え & 右端コンパクトボタン） */
+    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
+    .header-area h1 { font-size: 1.2rem; margin: 0 auto; text-align: center; }
+    .btn-help { background-color: #17a2b8; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; position: absolute; right: 0; }
     
     .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
@@ -68,7 +68,7 @@
 
   <div class="header-area">
     <h1>🏆 大会用スコア管理</h1>
-    <button class="btn-help" onclick="openHelpModal()">❓ 使い方</button>
+    <button class="btn-help" onclick="openHelpModal()" title="使い方">❓</button>
   </div>
 
   <div class="tab-group">
@@ -235,10 +235,10 @@
     </div>
   </div>
 
-  <!-- 使い方解説モーダル（新機能！） -->
+  <!-- 使い方解説モーダル -->
   <div id="help-modal" class="modal-overlay" onclick="closeHelpModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <div style="display: flex; justify-content: space-between; align- items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
         <h3 style="font-size: 14px; margin: 0; color:#17a2b8;">📖 大会ツールの使い方ガイド</h3>
         <button onclick="closeHelpModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
       </div>
@@ -250,7 +250,7 @@
           <span class="help-step">2. 前半戦入力</span> 各卓で「前半」を選択し、3局打ってスコアを送信。<br>
           <span class="help-step">3. 後半卓組み</span> 「🔀 後半卓組み確認」ボタンで前半の順位に応じた後半の組み合わせを確認。<br>
           <span class="help-step">4. 後半戦・チップ入力</span> 「後半」を選択して3局打って送信し、最後に最終持ちチップ数を入力。<br>
-          <span class="help-step">5. 全体集計</span> 「📊 全体集計結果」タブでパスワード（<code>maruko</code>）を入れて最終結果を確認。
+          <span class="help-step">5. 全体集計</span> 「📊 全体集計結果」タブで閲覧パスワードを入力して最終結果を確認。
         </div>
       </div>
 
