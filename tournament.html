@@ -25,6 +25,19 @@
     table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
     th, td { border: 1px solid #dee2e6; padding: 8px 4px; text-align: center; }
     th { background: #e9ecef; }
+    .score-plus { color: #d9534f; font-weight: bold; }
+    .score-minus { color: #0275d8; font-weight: bold; }
+
+    /* モーダル表示設定 */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4); justify-content: center; align-items: flex-start;
+      padding-top: 15px; z-index: 1000;
+    }
+    .modal-content {
+      background: white; padding: 15px; border-radius: 8px; max-width: 95%; width: 500px;
+      max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
@@ -78,16 +91,17 @@
         </div>
       </div>
 
-      <div style="text-align:center; margin: 8px 0;">
-        <button type="button" class="btn-sub" onclick="loadPlayerList()">🔄 対象IDの名簿を読み込む</button>
+      <div style="display:flex; justify-content:space-between; margin: 8px 0; gap:8px;">
+        <button type="button" class="btn-sub" onclick="loadPlayerList()" style="flex:1;">🔄 名簿読み込み</button>
+        <button type="button" class="btn-sub" onclick="showServerLogsModal()" style="flex:1; background-color:#17a2b8;">📋 送信済み各卓履歴</button>
       </div>
 
       <div class="label-sm">対局プレイヤー（名簿から選択）</div>
       <div class="grid">
-        <select id="p1-select" onchange="saveState()"><option value="">P1</option></select>
-        <select id="p2-select" onchange="saveState()"><option value="">P2</option></select>
-        <select id="p3-select" onchange="saveState()"><option value="">P3</option></select>
-        <select id="p4-select" onchange="saveState()"><option value="">P4</option></select>
+        <select id="p1-select" onchange="onPlayerChange()"><option value="">P1</option></select>
+        <select id="p2-select" onchange="onPlayerChange()"><option value="">P2</option></select>
+        <select id="p3-select" onchange="onPlayerChange()"><option value="">P3</option></select>
+        <select id="p4-select" onchange="onPlayerChange()"><option value="">P4</option></select>
       </div>
 
       <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
@@ -98,19 +112,37 @@
         <input type="number" id="s4" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
       </div>
 
-      <button onclick="addGame()">計算＆確定</button>
+      <button onclick="addGame()">1局のスコアを確定</button>
     </div>
 
     <!-- ローカル一時スコア確認 -->
     <div class="card">
-      <div style="font-size:12px; font-weight:bold; margin-bottom:5px;">確定済み局スコア</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+        <div style="font-size:12px; font-weight:bold;">送信前の入力スコア</div>
+        <div style="font-size:11px; color:#666;">※行タップで削除</div>
+      </div>
       <table>
         <thead>
-          <tr><th>局</th><th id="th-p1">P1</th><th id="th-p2">P2</th><th id="th-p3">P3</th><th id="th-p4">P4</th></tr>
+          <tr>
+            <th>局</th>
+            <th id="th-p1">P1</th>
+            <th id="th-p2">P2</th>
+            <th id="th-p3">P3</th>
+            <th id="th-p4">P4</th>
+          </tr>
         </thead>
         <tbody id="score-table-body"></tbody>
+        <tfoot>
+          <tr style="font-weight:bold; background-color:#f1f3f5;">
+            <td>合計</td>
+            <td id="tot-1">0</td>
+            <td id="tot-2">0</td>
+            <td id="tot-3">0</td>
+            <td id="tot-4">0</td>
+          </tr>
+        </tfoot>
       </table>
-      <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへデータ送信</button>
+      <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへ全局データ送信</button>
     </div>
   </div>
 
@@ -129,10 +161,22 @@
     </div>
   </div>
 
+  <!-- 各卓送信済み履歴確認モーダル -->
+  <div id="logs-modal" class="modal-overlay" onclick="closeLogsModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h3 style="font-size: 14px; margin: 0;">📋 各卓送信済みスコア履歴</h3>
+        <button onclick="closeLogsModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
+      </div>
+      <div id="modal-logs-body"></div>
+    </div>
+  </div>
+
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
-    let currentGameScores = [];
-    let currentPlayersList = []; // 読み込んだ名簿のキャッシュ
+    let games = [];
+    let rawScoreHistory = [];
+    let currentPlayersList = [];
 
     window.onload = () => {
       loadState();
@@ -142,7 +186,21 @@
       document.getElementById('reg-tournament-id').value = val;
     }
 
-    // 状態をローカルストレージへ保存
+    function onPlayerChange() {
+      updateHeaderNames();
+      saveState();
+    }
+
+    function updateHeaderNames() {
+      const names = ['p1-select','p2-select','p3-select','p4-select'].map((id, idx) => {
+        const val = document.getElementById(id).value;
+        return val || `P${idx+1}`;
+      });
+      names.forEach((n, i) => {
+        document.getElementById(`th-p${i+1}`).textContent = n;
+      });
+    }
+
     function saveState() {
       const state = {
         regTId: document.getElementById('reg-tournament-id').value,
@@ -157,13 +215,13 @@
         s2: document.getElementById('s2').value,
         s3: document.getElementById('s3').value,
         s4: document.getElementById('s4').value,
-        currentGameScores: currentGameScores,
+        games: games,
+        rawScoreHistory: rawScoreHistory,
         currentPlayersList: currentPlayersList
       };
       localStorage.setItem('mahjong_tournament_state', JSON.stringify(state));
     }
 
-    // 状態の復元
     function loadState() {
       const saved = localStorage.getItem('mahjong_tournament_state');
       if (!saved) return;
@@ -188,10 +246,11 @@
           if (state.p4) document.getElementById('p4-select').value = state.p4;
         }
 
-        if (state.currentGameScores && state.currentGameScores.length > 0) {
-          currentGameScores = state.currentGameScores;
-          renderTable();
-        }
+        if (state.games) games = state.games;
+        if (state.rawScoreHistory) rawScoreHistory = state.rawScoreHistory;
+
+        updateHeaderNames();
+        renderTable();
       } catch(e) {
         console.error('復元エラー:', e);
       }
@@ -207,6 +266,7 @@
         });
         if (currentVal) sel.value = currentVal;
       });
+      updateHeaderNames();
     }
 
     function switchTab(type) {
@@ -219,7 +279,6 @@
       document.getElementById('tab-summary-btn').classList.toggle('active', type === 'summary');
     }
 
-    // 登録タブ用：名簿読み込み
     async function loadRegPlayerList() {
       const tId = document.getElementById('reg-tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -241,7 +300,6 @@
       }
     }
 
-    // 参加者の一括更新・保存
     async function registerPlayers() {
       const tId = document.getElementById('reg-tournament-id').value.trim();
       const text = document.getElementById('reg-player-list').value;
@@ -265,7 +323,6 @@
       }
     }
 
-    // 入力タブ用：名簿読み込み
     async function loadPlayerList() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -293,6 +350,9 @@
       const rawInputs = ['s1','s2','s3','s4'].map(id => document.getElementById(id).value);
       if (rawInputs.some(val => val === '')) return alert('4人全員の持ち点を入力してください');
 
+      const actualScores = rawInputs.map(val => Number(val) * 100);
+      rawScoreHistory.push(actualScores);
+
       let players = rawInputs.map((val, idx) => {
         let rawScore = Number(val) * 100;
         let roundedPoint = Math.round(rawScore / 1000) * 1000;
@@ -310,52 +370,151 @@
       players[0].score = -subTotal;
       players.sort((a, b) => a.idx - b.idx);
 
-      currentGameScores = players.map(p => p.score);
+      games.push(players.map(p => p.score));
+
+      for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).value = '';
+
       renderTable();
       saveState();
     }
 
-    function renderTable() {
-      const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value || '未選択');
-      names.forEach((n, i) => document.getElementById(`th-p${i+1}`).textContent = n);
+    function deleteGame(index) {
+      if (confirm(`${index + 1}局目のデータを削除しますか？`)) {
+        games.splice(index, 1);
+        rawScoreHistory.splice(index, 1);
+        renderTable();
+        saveState();
+      }
+    }
 
+    function renderTable() {
       const tbody = document.getElementById('score-table-body');
-      tbody.innerHTML = `<tr><td>スコア</td>` + currentGameScores.map(s => `<td><b>${s > 0 ? '+'+s : s}</b></td>`).join('') + `</tr>`;
+      tbody.innerHTML = '';
+      let totals = [0, 0, 0, 0];
+
+      games.forEach((g, gameIdx) => {
+        let row = `<tr onclick="deleteGame(${gameIdx})" style="cursor: pointer;" title="タップして削除">`;
+        row += `<td style="font-weight:bold; color:#007bff; text-decoration:underline;">${gameIdx + 1}局</td>`;
+        
+        g.forEach((score, pIdx) => {
+          totals[pIdx] += score;
+          let cls = score > 0 ? 'score-plus' : (score < 0 ? 'score-minus' : '');
+          let fmt = score > 0 ? `+${score}` : score;
+          row += `<td class="${cls}">${fmt}</td>`;
+        });
+        row += '</tr>';
+        tbody.innerHTML += row;
+      });
+
+      totals.forEach((tot, idx) => {
+        let el = document.getElementById(`tot-${idx+1}`);
+        el.textContent = tot > 0 ? `+${tot}` : tot;
+        el.className = tot > 0 ? 'score-plus' : (tot < 0 ? 'score-minus' : '');
+      });
     }
 
     async function sendToSheet() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
-      if (currentGameScores.length === 0) return alert('先にスコアを確定させてください');
+      if (games.length === 0) return alert('確定済みの局データがありません');
 
       const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
       if (names.some(n => !n)) return alert('プレイヤーを全員選択してください');
 
-      const payload = {
-        action: "submitScore",
-        tournamentId: tId,
-        table: document.getElementById('select-table').value,
-        phase: document.getElementById('select-phase').value,
-        gameNum: 1,
-        p1Name: names[0], p1Score: currentGameScores[0], p1Raw: document.getElementById('s1').value * 100,
-        p2Name: names[1], p2Score: currentGameScores[1], p2Raw: document.getElementById('s2').value * 100,
-        p3Name: names[2], p3Score: currentGameScores[2], p3Raw: document.getElementById('s3').value * 100,
-        p4Name: names[3], p4Score: currentGameScores[3], p4Raw: document.getElementById('s4').value * 100,
-      };
+      if (!confirm(`確定済みの ${games.length} 局分のデータを送信しますか？`)) return;
 
       try {
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-        const data = await res.json();
-        if (data.status === 'success') {
-          alert('集計シートへ正常に送信されました！');
-          ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
-          currentGameScores = [];
-          document.getElementById('score-table-body').innerHTML = '';
-          saveState();
+        for (let i = 0; i < games.length; i++) {
+          const g = games[i];
+          const raw = rawScoreHistory[i];
+          const payload = {
+            action: "submitScore",
+            tournamentId: tId,
+            table: document.getElementById('select-table').value,
+            phase: document.getElementById('select-phase').value,
+            gameNum: i + 1,
+            p1Name: names[0], p1Score: g[0], p1Raw: raw[0],
+            p2Name: names[1], p2Score: g[1], p2Raw: raw[1],
+            p3Name: names[2], p3Score: g[2], p3Raw: raw[2],
+            p4Name: names[3], p4Score: g[3], p4Raw: raw[3],
+          };
+
+          await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
         }
+
+        alert(`合計 ${games.length} 局分のデータが集計サーバーへ正常に送信されました！`);
+        ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
+        games = [];
+        rawScoreHistory = [];
+        renderTable();
+        saveState();
+
       } catch(e) {
         alert('送信エラー: ' + e);
       }
+    }
+
+    // サーバーに送信済みの各卓ログを取得してモーダル表示
+    async function showServerLogsModal() {
+      const tId = document.getElementById('tournament-id').value.trim();
+      if (!tId) return alert('大会IDを入力してください');
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "getLogs", tournamentId: tId })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success' && data.logs.length > 0) {
+          // 卓・節ごとにグループ化
+          const grouped = {};
+          data.logs.forEach(log => {
+            const key = `${log.table} (${log.phase})`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(log);
+          });
+
+          let html = '';
+          for (const groupKey in grouped) {
+            const list = grouped[groupKey];
+            html += `<div style="margin-bottom:15px; border:1px solid #007bff; border-radius:6px; padding:8px; background:#f0f7ff;">`;
+            html += `<div style="font-weight:bold; color:#007bff; font-size:13px; margin-bottom:6px;">📍 ${groupKey}</div>`;
+            
+            list.forEach(item => {
+              html += `<table style="margin-bottom:8px; background:white;"><thead><tr>`;
+              html += `<th>局</th><th>${item.p1Name}</th><th>${item.p2Name}</th><th>${item.p3Name}</th><th>${item.p4Name}</th></tr></thead><tbody>`;
+              
+              let p1Class = item.p1Score > 0 ? 'score-plus' : (item.p1Score < 0 ? 'score-minus' : '');
+              let p2Class = item.p2Score > 0 ? 'score-plus' : (item.p2Score < 0 ? 'score-minus' : '');
+              let p3Class = item.p3Score > 0 ? 'score-plus' : (item.p3Score < 0 ? 'score-minus' : '');
+              let p4Class = item.p4Score > 0 ? 'score-plus' : (item.p4Score < 0 ? 'score-minus' : '');
+
+              html += `<tr>`;
+              html += `<td style="font-weight:bold;">${item.gameNum}局</td>`;
+              html += `<td class="${p1Class}">${item.p1Score > 0 ? '+'+item.p1Score : item.p1Score}<br><span style="font-size:10px; color:#888;">(${item.p1Raw}点)</span></td>`;
+              html += `<td class="${p2Class}">${item.p2Score > 0 ? '+'+item.p2Score : item.p2Score}<br><span style="font-size:10px; color:#888;">(${item.p2Raw}点)</span></td>`;
+              html += `<td class="${p3Class}">${item.p3Score > 0 ? '+'+item.p3Score : item.p3Score}<br><span style="font-size:10px; color:#888;">(${item.p3Raw}点)</span></td>`;
+              html += `<td class="${p4Class}">${item.p4Score > 0 ? '+'+item.p4Score : item.p4Score}<br><span style="font-size:10px; color:#888;">(${item.p4Raw}点)</span></td>`;
+              html += `</tr></tbody></table>`;
+            });
+
+            html += `</div>`;
+          }
+
+          document.getElementById('modal-logs-body').innerHTML = html;
+          document.getElementById('logs-modal').style.display = 'flex';
+
+        } else {
+          alert(`大会ID【${tId}】の送信済みデータはまだありません。`);
+        }
+      } catch(e) {
+        alert('ログ取得エラー: ' + e);
+      }
+    }
+
+    function closeLogsModal() {
+      document.getElementById('logs-modal').style.display = 'none';
     }
 
     async function fetchSummary() {
