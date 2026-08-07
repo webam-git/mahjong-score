@@ -5,27 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>大会用スコア集計</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 15px;
-      background-color: #f8f9fa;
-      color: #333;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f8f9fa; color: #333; }
     h1 { font-size: 1.2rem; text-align: center; margin-bottom: 15px; }
     .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; }
-    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 14px; background: #fff; }
+    select, input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 14px; background: #fff; }
     select { text-align-last: center; }
     button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
     button:active { opacity: 0.8; }
     .btn-send { background-color: #e0a800; color: #fff; margin-top: 10px; }
     .btn-dash { background-color: #17a2b8; margin-top: 10px; }
+    .btn-reg { background-color: #6f42c1; margin-top: 10px; }
+    .btn-sub { background-color: #6c757d; font-size: 11px; padding: 6px 12px; width: auto; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
-    .tab-group { display: flex; gap: 10px; margin-bottom: 15px; }
-    .tab-btn { flex: 1; padding: 10px; background: #dee2e6; color: #495057; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .tab-group { display: flex; gap: 6px; margin-bottom: 15px; }
+    .tab-btn { flex: 1; padding: 8px 4px; background: #dee2e6; color: #495057; border: none; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
     .tab-btn.active { background: #007bff; color: white; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
     th, td { border: 1px solid #dee2e6; padding: 8px 4px; text-align: center; }
@@ -37,12 +32,29 @@
   <h1>🏆 大会用スコア管理</h1>
 
   <div class="tab-group">
-    <button id="tab-input-btn" class="tab-btn active" onclick="switchTab('input')">📝 スコア入力</button>
+    <button id="tab-reg-btn" class="tab-btn active" onclick="switchTab('reg')">👥 参加者登録・編集</button>
+    <button id="tab-input-btn" class="tab-btn" onclick="switchTab('input')">📝 スコア入力</button>
     <button id="tab-summary-btn" class="tab-btn" onclick="switchTab('summary')">📊 全体集計結果</button>
   </div>
 
+  <!-- 0. 参加者登録・編集セクション -->
+  <div id="section-reg">
+    <div class="card">
+      <div class="label-sm">大会ID（日付など）</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="reg-tournament-id" placeholder="例: 20260807">
+        <button type="button" class="btn-sub" onclick="loadRegPlayerList()" style="width:140px; margin:0;">🔍 名簿読み込み</button>
+      </div>
+      
+      <div class="label-sm">参加者名リスト（改行区切りで編集可能）</div>
+      <textarea id="reg-player-list" rows="8" placeholder="名簿を読み込むか、直接名前を入力してください&#13;&#10;田中&#13;&#10;佐藤&#13;&#10;鈴木..." style="text-align:left; font-size:14px;"></textarea>
+      
+      <button class="btn-reg" onclick="registerPlayers()">💾 参加者名簿を更新保存</button>
+    </div>
+  </div>
+
   <!-- 1. スコア入力セクション -->
-  <div id="section-input">
+  <div id="section-input" style="display:none;">
     <div class="card">
       <div class="label-sm">大会情報＆卓の選択</div>
       <div class="grid-2">
@@ -67,7 +79,7 @@
       </div>
 
       <div style="text-align:center; margin: 8px 0;">
-        <button type="button" onclick="loadPlayerList()" style="background:#6c757d; font-size:11px; padding:4px 8px; width:auto;">🔄 参加者名簿を読み込む</button>
+        <button type="button" class="btn-sub" onclick="loadPlayerList()">🔄 対象IDの名簿を読み込む</button>
       </div>
 
       <div class="label-sm">対局プレイヤー（名簿から選択）</div>
@@ -122,18 +134,69 @@
     let currentGameScores = [];
 
     function switchTab(type) {
+      document.getElementById('section-reg').style.display = type === 'reg' ? 'block' : 'none';
       document.getElementById('section-input').style.display = type === 'input' ? 'block' : 'none';
       document.getElementById('section-summary').style.display = type === 'summary' ? 'block' : 'none';
+      
+      document.getElementById('tab-reg-btn').classList.toggle('active', type === 'reg');
       document.getElementById('tab-input-btn').classList.toggle('active', type === 'input');
       document.getElementById('tab-summary-btn').classList.toggle('active', type === 'summary');
     }
 
-    // スプレッドシートから参加者一覧を取得してプルダウンに反映
-    async function loadPlayerList() {
+    // 登録タブ用：名簿読み込み
+    async function loadRegPlayerList() {
+      const tId = document.getElementById('reg-tournament-id').value.trim();
+      if (!tId) return alert('大会IDを入力してください');
+
       try {
         const res = await fetch(GAS_URL, {
           method: 'POST',
-          body: JSON.stringify({ action: "getPlayers" })
+          body: JSON.stringify({ action: "getPlayers", tournamentId: tId })
+        });
+        const data = await res.json();
+        if (data.players && data.players.length > 0) {
+          document.getElementById('reg-player-list').value = data.players.join('\n');
+          alert(`大会ID【${tId}】の名簿（${data.players.length}名）を読み込みました！内容を編集して保存できます。`);
+        } else {
+          alert(`大会ID【${tId}】の名簿はまだ登録されていません。新規で入力して保存してください。`);
+        }
+      } catch(e) {
+        alert('名簿取得エラー: ' + e);
+      }
+    }
+
+    // 参加者の一括更新・保存
+    async function registerPlayers() {
+      const tId = document.getElementById('reg-tournament-id').value.trim();
+      const text = document.getElementById('reg-player-list').value;
+      if (!tId) return alert('大会IDを入力してください');
+
+      const players = text.split('\n').map(s => s.trim()).filter(s => s !== '');
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "registerPlayers", tournamentId: tId, players: players })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert(`大会ID【${tId}】のメンバー名簿（${players.length}名）を更新保存しました！`);
+          document.getElementById('tournament-id').value = tId;
+        }
+      } catch(e) {
+        alert('登録エラー: ' + e);
+      }
+    }
+
+    // 入力タブ用：名簿読み込み
+    async function loadPlayerList() {
+      const tId = document.getElementById('tournament-id').value.trim();
+      if (!tId) return alert('大会IDを入力してください');
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "getPlayers", tournamentId: tId })
         });
         const data = await res.json();
         if (data.players && data.players.length > 0) {
@@ -144,9 +207,9 @@
               sel.innerHTML += `<option value="${p}">${p}</option>`;
             });
           });
-          alert('名簿を読み込みました！');
+          alert(`大会ID【${tId}】の名簿（${data.players.length}名）を読み込みました！`);
         } else {
-          alert('参加者名簿シートに名前が登録されていません。');
+          alert(`大会ID【${tId}】に登録されている参加者が見つかりません。「👥 参加者登録・編集」タブから登録してください。`);
         }
       } catch(e) {
         alert('名簿取得エラー: ' + e);
@@ -186,9 +249,8 @@
       tbody.innerHTML = `<tr><td>スコア</td>` + currentGameScores.map(s => `<td><b>${s > 0 ? '+'+s : s}</b></td>`).join('') + `</tr>`;
     }
 
-    // スプレッドシートへ送信
     async function sendToSheet() {
-      const tId = document.getElementById('tournament-id').value;
+      const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
       if (currentGameScores.length === 0) return alert('先にスコアを確定させてください');
 
@@ -221,9 +283,8 @@
       }
     }
 
-    // パスワードを入力してトータル集計結果を取得
     async function fetchSummary() {
-      const tId = document.getElementById('tournament-id').value;
+      const tId = document.getElementById('tournament-id').value.trim();
       const pass = document.getElementById('view-pass').value;
       if (!tId) return alert('大会IDを入力してください');
       if (!pass) return alert('パスワードを入力してください');
