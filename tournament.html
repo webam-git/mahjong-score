@@ -18,14 +18,14 @@
     .btn-dash { background-color: #17a2b8; margin-top: 10px; }
     .btn-reg { background-color: #6f42c1; margin-top: 10px; }
     .btn-sub { background-color: #6c757d; font-size: 11px; padding: 6px 12px; width: auto; }
-    .btn-del { background-color: #dc3545; color: white; padding: 2px 6px; font-size: 10px; border-radius: 3px; border: none; cursor: pointer; }
+    .btn-del { background-color: #dc3545; color: white; padding: 3px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
     .tab-group { display: flex; gap: 6px; margin-bottom: 15px; }
     .tab-btn { flex: 1; padding: 8px 4px; background: #dee2e6; color: #495057; border: none; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
     .tab-btn.active { background: #007bff; color: white; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
-    th, td { border: 1px solid #dee2e6; padding: 8px 4px; text-align: center; }
-    th { background: #e9ecef; }
+    table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 12px; }
+    th, td { border: 1px solid #dee2e6; padding: 6px 2px; text-align: center; }
+    th { background: #e9ecef; font-size: 11px; }
     .score-plus { color: #d9534f; font-weight: bold; }
     .score-minus { color: #0275d8; font-weight: bold; }
 
@@ -38,6 +38,10 @@
     .modal-content {
       background: white; padding: 15px; border-radius: 8px; max-width: 95%; width: 500px;
       max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .log-item-card {
+      background: #ffffff; border: 1px solid #ced4da; border-radius: 6px;
+      padding: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
   </style>
 </head>
@@ -165,7 +169,7 @@
   <!-- 各卓送信済み履歴確認モーダル -->
   <div id="logs-modal" class="modal-overlay" onclick="closeLogsModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
         <h3 style="font-size: 14px; margin: 0;">📋 各卓送信済みスコア履歴</h3>
         <button onclick="closeLogsModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
       </div>
@@ -416,6 +420,9 @@
 
     async function sendToSheet() {
       const tId = document.getElementById('tournament-id').value.trim();
+      const currentTable = document.getElementById('select-table').value;
+      const currentPhase = document.getElementById('select-phase').value;
+
       if (!tId) return alert('大会IDを入力してください');
       if (games.length === 0) return alert('確定済みの局データがありません');
 
@@ -425,15 +432,30 @@
       if (!confirm(`確定済みの ${games.length} 局分のデータを送信しますか？`)) return;
 
       try {
+        // 1. サーバーから既存のログを取得して、現在の「卓・節」の既存在庫局数を調べる
+        let existingCount = 0;
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "getLogs", tournamentId: tId })
+        });
+        const logData = await res.json();
+        
+        if (logData.status === 'success' && logData.logs.length > 0) {
+          existingCount = logData.logs.filter(l => l.table === currentTable && l.phase === currentPhase).length;
+        }
+
+        // 2. 既存の局数に続けてナンバリングしながら送信（例: 既存2局なら、次は3局目からスタート）
         for (let i = 0; i < games.length; i++) {
           const g = games[i];
           const raw = rawScoreHistory[i];
+          const nextGameNum = existingCount + i + 1;
+
           const payload = {
             action: "submitScore",
             tournamentId: tId,
-            table: document.getElementById('select-table').value,
-            phase: document.getElementById('select-phase').value,
-            gameNum: i + 1,
+            table: currentTable,
+            phase: currentPhase,
+            gameNum: nextGameNum,
             p1Name: names[0], p1Score: g[0], p1Raw: raw[0],
             p2Name: names[1], p2Score: g[1], p2Raw: raw[1],
             p3Name: names[2], p3Score: g[2], p3Raw: raw[2],
@@ -455,7 +477,6 @@
       }
     }
 
-    // サーバーログ取得・表示
     async function showServerLogsModal() {
       const tId = document.getElementById('tournament-id').value.trim();
       if (!tId) return alert('大会IDを入力してください');
@@ -478,12 +499,18 @@
           let html = '';
           for (const groupKey in grouped) {
             const list = grouped[groupKey];
-            html += `<div style="margin-bottom:15px; border:1px solid #007bff; border-radius:6px; padding:8px; background:#f0f7ff;">`;
-            html += `<div style="font-weight:bold; color:#007bff; font-size:13px; margin-bottom:6px;">📍 ${groupKey}</div>`;
+            html += `<div style="margin-bottom:15px; border:1px solid #007bff; border-radius:6px; padding:10px; background:#f0f7ff;">`;
+            html += `<div style="font-weight:bold; color:#007bff; font-size:13px; margin-bottom:8px;">📍 ${groupKey}</div>`;
             
             list.forEach(item => {
-              html += `<table style="margin-bottom:8px; background:white;"><thead><tr>`;
-              html += `<th>局</th><th>${item.p1Name}</th><th>${item.p2Name}</th><th>${item.p3Name}</th><th>${item.p4Name}</th><th>操作</th></tr></thead><tbody>`;
+              html += `<div class="log-item-card">`;
+              html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">`;
+              html += `<span style="font-weight:bold; font-size:12px; color:#333;">【 ${item.gameNum}局目 】</span>`;
+              html += `<button class="btn-del" onclick="deleteServerLog(${item.rowIndex}, '${groupKey}', ${item.gameNum})">削除</button>`;
+              html += `</div>`;
+              
+              html += `<table><thead><tr>`;
+              html += `<th>${item.p1Name}</th><th>${item.p2Name}</th><th>${item.p3Name}</th><th>${item.p4Name}</th></tr></thead><tbody>`;
               
               let p1Class = item.p1Score > 0 ? 'score-plus' : (item.p1Score < 0 ? 'score-minus' : '');
               let p2Class = item.p2Score > 0 ? 'score-plus' : (item.p2Score < 0 ? 'score-minus' : '');
@@ -491,13 +518,12 @@
               let p4Class = item.p4Score > 0 ? 'score-plus' : (item.p4Score < 0 ? 'score-minus' : '');
 
               html += `<tr>`;
-              html += `<td style="font-weight:bold;">${item.gameNum}局</td>`;
               html += `<td class="${p1Class}">${item.p1Score > 0 ? '+'+item.p1Score : item.p1Score}<br><span style="font-size:10px; color:#888;">(${item.p1Raw}点)</span></td>`;
               html += `<td class="${p2Class}">${item.p2Score > 0 ? '+'+item.p2Score : item.p2Score}<br><span style="font-size:10px; color:#888;">(${item.p2Raw}点)</span></td>`;
               html += `<td class="${p3Class}">${item.p3Score > 0 ? '+'+item.p3Score : item.p3Score}<br><span style="font-size:10px; color:#888;">(${item.p3Raw}点)</span></td>`;
               html += `<td class="${p4Class}">${item.p4Score > 0 ? '+'+item.p4Score : item.p4Score}<br><span style="font-size:10px; color:#888;">(${item.p4Raw}点)</span></td>`;
-              html += `<td><button class="btn-del" onclick="deleteServerLog(${item.rowIndex}, '${groupKey}', ${item.gameNum})">削除</button></td>`;
               html += `</tr></tbody></table>`;
+              html += `</div>`;
             });
 
             html += `</div>`;
@@ -514,7 +540,6 @@
       }
     }
 
-    // サーバー上の指定ログを削除
     async function deleteServerLog(rowIndex, groupKey, gameNum) {
       if (!confirm(`【${groupKey} の ${gameNum}局目】の送信済みデータを削除しますか？\n※削除すると集計結果からも即座に差し引かれます。`)) return;
 
@@ -526,7 +551,7 @@
         const data = await res.json();
         if (data.status === 'success') {
           alert('該当データを削除しました！');
-          showServerLogsModal(); // モーダル再読み込み
+          showServerLogsModal();
         } else {
           alert('削除処理エラー: ' + data.message);
         }
