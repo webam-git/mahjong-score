@@ -243,9 +243,31 @@
     }
 
     function onPlayerChange() {
+      filterDuplicatePlayers();
       updateHeaderNames();
       updateChipLabels();
       saveState();
+    }
+
+    // 重複プレイヤー選択の防止制御
+    function filterDuplicatePlayers() {
+      const selectIds = ['p1-select', 'p2-select', 'p3-select', 'p4-select'];
+      const selectedValues = selectIds.map(id => document.getElementById(id).value);
+
+      selectIds.forEach((targetId, targetIdx) => {
+        const sel = document.getElementById(targetId);
+        const currentVal = sel.value;
+
+        // 一旦全オプションを取得
+        Array.from(sel.options).forEach(opt => {
+          if (!opt.value) return; // 「選択」項目は常に表示
+
+          // 他のプルダウンで選択されている名前は非表示（隠す）
+          const isSelectedElsewhere = selectedValues.some((val, idx) => idx !== targetIdx && val === opt.value);
+          opt.style.display = isSelectedElsewhere ? 'none' : 'block';
+          opt.disabled = isSelectedElsewhere;
+        });
+      });
     }
 
     function updateHeaderNames() {
@@ -258,7 +280,6 @@
       });
     }
 
-    // チップ入力欄のプレイヤー名ラベルを更新
     function updateChipLabels() {
       for (let i = 1; i <= 4; i++) {
         const name = document.getElementById(`p${i}-select`).value || `P${i}`;
@@ -266,7 +287,6 @@
       }
     }
 
-    // 節（前半/後半）に応じたチップ入力欄の有効化/無効化切り替え
     function updateChipControl() {
       const phase = document.getElementById('select-phase').value;
       const area = document.getElementById('chip-input-area');
@@ -328,6 +348,7 @@
           if (state.p2) document.getElementById('p2-select').value = state.p2;
           if (state.p3) document.getElementById('p3-select').value = state.p3;
           if (state.p4) document.getElementById('p4-select').value = state.p4;
+          filterDuplicatePlayers();
         }
 
         if (state.games) games = state.games;
@@ -351,6 +372,7 @@
         });
         if (currentVal) sel.value = currentVal;
       });
+      filterDuplicatePlayers();
       updateHeaderNames();
       updateChipLabels();
     }
