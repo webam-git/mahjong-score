@@ -220,7 +220,7 @@
     
     <div id="summary-result-card" class="card" style="display:none;">
       <div style="font-size:11px; color:#666; text-align:center; margin-bottom:12px; background:#e9ecef; padding:4px; border-radius:4px;">
-        ※レート設定：テンピン（1pt = 100円） / チップ 1枚 200円 固定
+        ※倍率設定：1pt = 100pt / チップ 1枚 200pt 固定
       </div>
 
       <!-- 1. 個人スコア順位表 -->
@@ -229,8 +229,8 @@
 
       <hr style="border:none; border-top:1px dashed #ccc; margin:20px 0;">
 
-      <!-- 2. トータル精算金額表 -->
-      <h3 style="font-size:14px; text-align:center; color:#28a745; margin-top:0;">整体 収支金額表（点数＋チップ換算）</h3>
+      <!-- 2. トータル精算ポイント表 -->
+      <h3 style="font-size:14px; text-align:center; color:#28a745; margin-top:0;">トータル 精算ポイント表（点数＋チップ換算）</h3>
       <div id="summary-money-table-area"></div>
     </div>
   </div>
@@ -259,6 +259,7 @@
         <div class="help-text">
           ・<b>持ち点入力:</b> 38,500点の場合 ➔ <code>385</code> と上位3桁を入力。<br>
           ・<b>自動計算:</b> ウマ（+20, +10, -10, -20）とオカ（30,000点返し）が自動計算されます。<br>
+          ・<b>端数処理:</b> 百の位を四捨五入して計算します。<br>
           ・<b>データ送信:</b> 各節「3局分」確定させると送信ボタンが押せるようになります。
         </div>
       </div>
@@ -274,11 +275,11 @@
       </div>
 
       <div class="help-section">
-        <div class="help-title">💴 レート＆収支計算</div>
+        <div class="help-title">📊 ポイント＆収支計算</div>
         <div class="help-text">
-          ・<b>点数レート:</b> テンピン（1pt = 100円）固定<br>
-          ・<b>チップレート:</b> 1枚 = 200円固定<br>
-          ※集計画面で個人トータルスコア表とチップ込みの精算金額表が自動計算・表示されます。
+          ・<b>点数換算:</b> 1pt = 100pt 固定<br>
+          ・<b>チップ換算:</b> 1枚 = 200pt 固定<br>
+          ※集計画面で個人トータルスコア表とチップ込みの精算ポイント表が自動計算・表示されます。
         </div>
       </div>
 
@@ -344,8 +345,8 @@
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
-    const POINT_RATE = 100; // テンピン固定
-    const CHIP_RATE = 200;   // チップ 1枚 200円固定
+    const POINT_RATE = 100; // 1pt = 100pt固定
+    const CHIP_RATE = 200;   // チップ 1枚 200pt固定
 
     let games = [];
     let rawScoreHistory = [];
@@ -363,7 +364,8 @@
       document.getElementById('help-modal').style.display = 'flex';
     }
 
-    function closeHelpModal() {
+    function closeHelpModal(e) {
+      if (e && e.target !== e.currentTarget && e.type === 'click') return;
       document.getElementById('help-modal').style.display = 'none';
     }
 
@@ -1053,7 +1055,7 @@
       htmlScore += '</tbody></table>';
       document.getElementById('summary-table-area').innerHTML = htmlScore;
 
-      // 2. 金額収支表の描画 (テンピン: スコア*100円 + チップ*200円)
+      // 2. 精算ポイント表の描画 (1pt: スコア*100pt + チップ*200pt)
       const moneyList = fetchedSummaryData.map(p => {
         const scoreMoney = p.totalScore * POINT_RATE;
         const chipMoney = (p.chips || 0) * CHIP_RATE;
@@ -1063,7 +1065,7 @@
 
       let htmlMoney = '<table><thead><tr><th>順位</th><th>名前</th><th>チップ</th><th>トータル収支</th></tr></thead><tbody>';
       moneyList.forEach((p, idx) => {
-        const fmtMoney = p.totalMoney > 0 ? `+${p.totalMoney.toLocaleString()}円` : `${p.totalMoney.toLocaleString()}円`;
+        const fmtMoney = p.totalMoney > 0 ? `+${p.totalMoney.toLocaleString()} pt` : `${p.totalMoney.toLocaleString()} pt`;
         const clsMoney = p.totalMoney > 0 ? 'score-plus' : (p.totalMoney < 0 ? 'score-minus' : '');
         const fmtChip = p.chips > 0 ? `+${p.chips}枚` : `${p.chips}枚`;
 
