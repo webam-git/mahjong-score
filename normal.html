@@ -13,11 +13,37 @@
       background-color: #f8f9fa;
       color: #333;
     }
-    h1 {
-      font-size: 1.2rem;
-      text-align: center;
+    
+    /* ヘッダーエリア（タイトル中央揃え & 右端コンパクトボタン） */
+    .header-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 15px;
+      position: relative;
     }
+    .header-area h1 {
+      font-size: 1.2rem;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .btn-help {
+      background-color: #17a2b8;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      right: 0;
+    }
+
     .card {
       background: white;
       padding: 15px;
@@ -134,15 +160,15 @@
       margin-bottom: 4px;
     }
 
-    /* モーダル上部配置設定 */
+    /* モーダル共通設定 */
     .modal-overlay {
       display: none;
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0,0,0,0.3); /* 下のスコア表が見やすいように背景をうすめの透過に設定 */
+      background: rgba(0,0,0,0.4);
       justify-content: center;
-      align-items: flex-start; /* 画面上部に寄せる */
+      align-items: flex-start;
       padding-top: 15px;
       z-index: 1000;
     }
@@ -152,15 +178,47 @@
       border-radius: 8px;
       max-width: 95%;
       width: 480px;
-      max-height: 50vh; /* 画面半分以下の高さに抑える */
+      max-height: 80vh;
       overflow-y: auto;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* 使い方ガイド用スタイル */
+    .help-section {
+      border-bottom: 1px solid #eee;
+      padding: 10px 0;
+    }
+    .help-title {
+      font-weight: bold;
+      font-size: 13px;
+      color: #007bff;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .help-text {
+      font-size: 11px;
+      color: #555;
+      line-height: 1.6;
+    }
+    .help-step {
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      display: inline-block;
+      margin-bottom: 4px;
+      font-size: 11px;
     }
   </style>
 </head>
 <body>
 
-  <h1>🀄️ 麻雀スコア計算</h1>
+  <div class="header-area">
+    <h1>🀄️ 麻雀スコア計算</h1>
+    <button class="btn-help" onclick="openHelpModal()" title="使い方">❓</button>
+  </div>
 
   <!-- 1. レート設定 & プレイヤー名 & 持ち点 -->
   <div class="card">
@@ -253,7 +311,44 @@
     <button class="btn-reset" onclick="resetAll()">全データをクリア（新規対局）</button>
   </div>
 
-  <!-- 持ち点履歴確認用モーダル（画面上部表示） -->
+  <!-- 使い方ガイドモーダル -->
+  <div id="help-modal" class="modal-overlay" onclick="closeHelpModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+        <h3 style="font-size: 14px; margin: 0; color:#17a2b8;">📖 スコア計算ツールの使い方</h3>
+        <button onclick="closeHelpModal()" style="background-color: #6c757d; padding: 4px 10px; font-size: 12px; width: auto;">閉じる</button>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🔰 基本的な手順</div>
+        <div class="help-text">
+          <span class="help-step">1. 設定・名前</span> レート選択、プレイヤー名を入力。<br>
+          <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code>）。<br>
+          <span class="help-step">3. 局の確定</span> 「1局のスコアを確定」を押すと自動で計算・蓄積されます。<br>
+          <span class="help-step">4. 最終精算</span> 対局終了後、チップ獲得枚数を入力して「最終スコア＆精算額を確定」を押します。
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">📝 点数・計算ルール</div>
+        <div class="help-text">
+          ・<b>基準点:</b> 30,000点返し（オカ含む）<br>
+          ・<b>ウマ:</b> 1位 +20 / 2位 +10 / 3位 -10 / 4位 -20（固定）<br>
+          ・<b>端数処理:</b> 千の位を四捨五入して丸めます。
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">✏️ 誤入力の削除・確認</div>
+        <div class="help-text">
+          ・<b>局の削除:</b> スコア一覧の行（1局、2局...）をタップすると該当の局データを削除できます。<br>
+          ・<b>持ち点確認:</b> 「📋 持ち点履歴を確認」ボタンから元の入力持ち点をいつでも一覧で確認できます。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 持ち点履歴確認用モーダル -->
   <div id="scores-modal" class="modal-overlay" onclick="closeScoresModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -284,6 +379,15 @@
         document.getElementById(id).addEventListener('input', saveState);
       });
     };
+
+    function openHelpModal() {
+      document.getElementById('help-modal').style.display = 'flex';
+    }
+
+    function closeHelpModal(e) {
+      if (e && e.target !== e.currentTarget && e.type === 'click') return;
+      document.getElementById('help-modal').style.display = 'none';
+    }
 
     function onRateChange() {
       saveState();
@@ -374,7 +478,6 @@
       saveState();
     }
 
-    // 表形式で持ち点履歴モーダルを表示
     function showScoresModal() {
       if (rawScoreHistory.length === 0) {
         return alert('まだ入力済みの局データがありません');
@@ -407,7 +510,8 @@
       document.getElementById('scores-modal').style.display = 'flex';
     }
 
-    function closeScoresModal() {
+    function closeScoresModal(e) {
+      if (e && e.target !== e.currentTarget && e.type === 'click') return;
       document.getElementById('scores-modal').style.display = 'none';
     }
 
