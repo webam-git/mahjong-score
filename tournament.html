@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大会用スコア集計</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 15px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    h1 { font-size: 1.2rem; text-align: center; margin-bottom: 15px; }
+    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; }
+    select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 14px; background: #fff; }
+    select { text-align-last: center; }
+    button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    button:active { opacity: 0.8; }
+    .btn-send { background-color: #e0a800; color: #fff; margin-top: 10px; }
+    .btn-dash { background-color: #17a2b8; margin-top: 10px; }
+    .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 4px; }
+    .tab-group { display: flex; gap: 10px; margin-bottom: 15px; }
+    .tab-btn { flex: 1; padding: 10px; background: #dee2e6; color: #495057; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .tab-btn.active { background: #007bff; color: white; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 4px; text-align: center; }
+    th { background: #e9ecef; }
+  </style>
+</head>
+<body>
+
+  <h1>🏆 大会用スコア管理</h1>
+
+  <div class="tab-group">
+    <button id="tab-input-btn" class="tab-btn active" onclick="switchTab('input')">📝 スコア入力</button>
+    <button id="tab-summary-btn" class="tab-btn" onclick="switchTab('summary')">📊 全体集計結果</button>
+  </div>
+
+  <!-- 1. スコア入力セクション -->
+  <div id="section-input">
+    <div class="card">
+      <div class="label-sm">大会情報＆卓の選択</div>
+      <div class="grid-2">
+        <div>
+          <div style="font-size:10px; color:#888; text-align:center;">大会ID (日付など)</div>
+          <input type="text" id="tournament-id" placeholder="20260807">
+        </div>
+        <div>
+          <div style="font-size:10px; color:#888; text-align:center;">卓・節</div>
+          <div style="display:flex; gap:4px;">
+            <select id="select-table">
+              <option value="A卓">A卓</option>
+              <option value="B卓">B卓</option>
+              <option value="C卓">C卓</option>
+            </select>
+            <select id="select-phase">
+              <option value="前半">前半</option>
+              <option value="後半">後半</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin: 8px 0;">
+        <button type="button" onclick="loadPlayerList()" style="background:#6c757d; font-size:11px; padding:4px 8px; width:auto;">🔄 参加者名簿を読み込む</button>
+      </div>
+
+      <div class="label-sm">対局プレイヤー（名簿から選択）</div>
+      <div class="grid">
+        <select id="p1-select"><option value="">P1</option></select>
+        <select id="p2-select"><option value="">P2</option></select>
+        <select id="p3-select"><option value="">P3</option></select>
+        <select id="p4-select"><option value="">P4</option></select>
+      </div>
+
+      <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
+      <div class="grid">
+        <input type="number" id="s1" placeholder="持ち点" inputmode="numeric">
+        <input type="number" id="s2" placeholder="持ち点" inputmode="numeric">
+        <input type="number" id="s3" placeholder="持ち点" inputmode="numeric">
+        <input type="number" id="s4" placeholder="持ち点" inputmode="numeric">
+      </div>
+
+      <button onclick="addGame()">計算＆確定</button>
+    </div>
+
+    <!-- ローカル一時スコア確認 -->
+    <div class="card">
+      <div style="font-size:12px; font-weight:bold; margin-bottom:5px;">確定済み局スコア</div>
+      <table>
+        <thead>
+          <tr><th>局</th><th id="th-p1">P1</th><th id="th-p2">P2</th><th id="th-p3">P3</th><th id="th-p4">P4</th></tr>
+        </thead>
+        <tbody id="score-table-body"></tbody>
+      </table>
+      <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへデータ送信</button>
+    </div>
+  </div>
+
+  <!-- 2. 集計結果セクション（パスワード保護） -->
+  <div id="section-summary" style="display:none;">
+    <div class="card">
+      <div class="label-sm">パスワード保護</div>
+      <div style="display:flex; gap:8px;">
+        <input type="password" id="view-pass" placeholder="閲覧パスワード">
+        <button onclick="fetchSummary()" class="btn-dash" style="width:120px; margin:0;">表示</button>
+      </div>
+    </div>
+    <div id="summary-result-card" class="card" style="display:none;">
+      <h3 style="font-size:14px; text-align:center; margin-top:0;">🏆 トータル個人順位表</h3>
+      <div id="summary-table-area"></div>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
+    let currentGameScores = [];
+
+    function switchTab(type) {
+      document.getElementById('section-input').style.display = type === 'input' ? 'block' : 'none';
+      document.getElementById('section-summary').style.display = type === 'summary' ? 'block' : 'none';
+      document.getElementById('tab-input-btn').classList.toggle('active', type === 'input');
+      document.getElementById('tab-summary-btn').classList.toggle('active', type === 'summary');
+    }
+
+    // スプレッドシートから参加者一覧を取得してプルダウンに反映
+    async function loadPlayerList() {
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "getPlayers" })
+        });
+        const data = await res.json();
+        if (data.players && data.players.length > 0) {
+          ['p1-select','p2-select','p3-select','p4-select'].forEach(id => {
+            const sel = document.getElementById(id);
+            sel.innerHTML = '<option value="">選択</option>';
+            data.players.forEach(p => {
+              sel.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+          });
+          alert('名簿を読み込みました！');
+        } else {
+          alert('参加者名簿シートに名前が登録されていません。');
+        }
+      } catch(e) {
+        alert('名簿取得エラー: ' + e);
+      }
+    }
+
+    function addGame() {
+      const rawInputs = ['s1','s2','s3','s4'].map(id => document.getElementById(id).value);
+      if (rawInputs.some(val => val === '')) return alert('4人全員の持ち点を入力してください');
+
+      let players = rawInputs.map((val, idx) => {
+        let rawScore = Number(val) * 100;
+        let roundedPoint = Math.round(rawScore / 1000) * 1000;
+        return { idx, rawScore, roundedPoint, score: 0 };
+      });
+
+      players.sort((a, b) => b.rawScore - a.rawScore);
+      const uma = [20, 10, -10, -20];
+      let subTotal = 0;
+      for (let rank = 3; rank >= 1; rank--) {
+        let p = players[rank];
+        p.score = ((p.roundedPoint - 30000) / 1000) + uma[rank];
+        subTotal += p.score;
+      }
+      players[0].score = -subTotal;
+      players.sort((a, b) => a.idx - b.idx);
+
+      currentGameScores = players.map(p => p.score);
+      renderTable();
+    }
+
+    function renderTable() {
+      const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value || '未選択');
+      names.forEach((n, i) => document.getElementById(`th-p${i+1}`).textContent = n);
+
+      const tbody = document.getElementById('score-table-body');
+      tbody.innerHTML = `<tr><td>スコア</td>` + currentGameScores.map(s => `<td><b>${s > 0 ? '+'+s : s}</b></td>`).join('') + `</tr>`;
+    }
+
+    // スプレッドシートへ送信
+    async function sendToSheet() {
+      const tId = document.getElementById('tournament-id').value;
+      if (!tId) return alert('大会IDを入力してください');
+      if (currentGameScores.length === 0) return alert('先にスコアを確定させてください');
+
+      const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
+      if (names.some(n => !n)) return alert('プレイヤーを全員選択してください');
+
+      const payload = {
+        action: "submitScore",
+        tournamentId: tId,
+        table: document.getElementById('select-table').value,
+        phase: document.getElementById('select-phase').value,
+        gameNum: 1,
+        p1Name: names[0], p1Score: currentGameScores[0], p1Raw: document.getElementById('s1').value * 100,
+        p2Name: names[1], p2Score: currentGameScores[1], p2Raw: document.getElementById('s2').value * 100,
+        p3Name: names[2], p3Score: currentGameScores[2], p3Raw: document.getElementById('s3').value * 100,
+        p4Name: names[3], p4Score: currentGameScores[3], p4Raw: document.getElementById('s4').value * 100,
+      };
+
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('集計シートへ正常に送信されました！');
+          ['s1','s2','s3','s4'].forEach(id => document.getElementById(id).value = '');
+          currentGameScores = [];
+          document.getElementById('score-table-body').innerHTML = '';
+        }
+      } catch(e) {
+        alert('送信エラー: ' + e);
+      }
+    }
+
+    // パスワードを入力してトータル集計結果を取得
+    async function fetchSummary() {
+      const tId = document.getElementById('tournament-id').value;
+      const pass = document.getElementById('view-pass').value;
+      if (!tId) return alert('大会IDを入力してください');
+      if (!pass) return alert('パスワードを入力してください');
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: "getSummary", tournamentId: tId, password: pass })
+        });
+        const data = await res.json();
+        if (data.status === 'error') {
+          alert(data.message);
+        } else {
+          renderSummaryTable(data.summary);
+        }
+      } catch(e) {
+        alert('集計取得エラー: ' + e);
+      }
+    }
+
+    function renderSummaryTable(summary) {
+      if (summary.length === 0) {
+        document.getElementById('summary-table-area').innerHTML = '<p style="text-align:center; color:#888;">該当するデータがありません</p>';
+      } else {
+        let html = '<table><thead><tr><th>順位</th><th>名前</th><th>半荘数</th><th>トータル</th></tr></thead><tbody>';
+        summary.forEach((p, idx) => {
+          html += `<tr>
+            <td style="font-weight:bold;">${idx + 1}位</td>
+            <td>${p.name}</td>
+            <td>${p.games}局</td>
+            <td style="font-weight:bold; color:${p.totalScore > 0 ? '#d9534f' : '#0275d8'}">${p.totalScore > 0 ? '+'+p.totalScore : p.totalScore}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('summary-table-area').innerHTML = html;
+      }
+      document.getElementById('summary-result-card').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
