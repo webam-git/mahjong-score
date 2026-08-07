@@ -30,6 +30,12 @@
     .score-plus { color: #d9534f; font-weight: bold; }
     .score-minus { color: #0275d8; font-weight: bold; }
 
+    /* チップ入力欄の非活性（ロック）用スタイル */
+    .chip-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
     /* モーダル表示設定 */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -85,7 +91,7 @@
               <option value="B卓">B卓</option>
               <option value="C卓">C卓</option>
             </select>
-            <select id="select-phase" onchange="saveState()">
+            <select id="select-phase" onchange="onPhaseChange()">
               <option value="前半">前半</option>
               <option value="後半">後半</option>
             </select>
@@ -147,17 +153,29 @@
       <button class="btn-send" onclick="sendToSheet()">📤 集計サーバーへ全局データ送信</button>
     </div>
 
-    <!-- 最終チップ枚数入力 -->
-    <div class="card" style="border: 1px solid #fd7e14;">
-      <div style="font-size:12px; font-weight:bold; color:#fd7e14; text-align:center; margin-bottom:8px;">🪙 全局終了後の最終チップ枚数入力</div>
-      <div class="label-sm">選択中の4名の最終チップ枚数（±入力可 例: +5, -3）</div>
-      <div class="grid">
-        <input type="number" id="chip1" placeholder="P1枚数" inputmode="numeric">
-        <input type="number" id="chip2" placeholder="P2枚数" inputmode="numeric">
-        <input type="number" id="chip3" placeholder="P3枚数" inputmode="numeric">
-        <input type="number" id="chip4" placeholder="P4枚数" inputmode="numeric">
+    <!-- 最終チップ枚数入力（後半戦のみ有効） -->
+    <div id="chip-card" class="card" style="border: 1px solid #fd7e14;">
+      <div style="font-size:12px; font-weight:bold; color:#fd7e14; text-align:center; margin-bottom:4px;">🪙 全局終了後の最終チップ枚数入力</div>
+      <div id="chip-notice" style="font-size:11px; color:#d9534f; text-align:center; margin-bottom:8px;">
+        ※最終チップ入力は「後半」選択時のみ可能です
       </div>
-      <button class="btn-chip" onclick="sendChipData()">🪙 最終チップ枚数を送信保存</button>
+
+      <div id="chip-input-area" class="chip-disabled">
+        <div class="label-sm">後半対局メンバーの最終チップ枚数（±入力可）</div>
+        <div class="grid" style="margin-bottom:4px;">
+          <div id="chip-lbl-p1" style="font-size:11px; font-weight:bold; text-align:center;">P1</div>
+          <div id="chip-lbl-p2" style="font-size:11px; font-weight:bold; text-align:center;">P2</div>
+          <div id="chip-lbl-p3" style="font-size:11px; font-weight:bold; text-align:center;">P3</div>
+          <div id="chip-lbl-p4" style="font-size:11px; font-weight:bold; text-align:center;">P4</div>
+        </div>
+        <div class="grid">
+          <input type="number" id="chip1" placeholder="枚数" inputmode="numeric">
+          <input type="number" id="chip2" placeholder="枚数" inputmode="numeric">
+          <input type="number" id="chip3" placeholder="枚数" inputmode="numeric">
+          <input type="number" id="chip4" placeholder="枚数" inputmode="numeric">
+        </div>
+        <button id="btn-submit-chip" class="btn-chip" onclick="sendChipData()" disabled>🪙 最終チップ枚数を送信保存</button>
+      </div>
     </div>
 
   </div>
@@ -202,7 +220,7 @@
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz9TE11JSoJNs9o_fvcenKW58jRI6Kg14ekItDRsSPrSoZOUQIcn4GMYq7MvhJqD75AyA/exec";
-    const POINT_RATE = 100; // テンピン固定 (1pt = 100円)
+    const POINT_RATE = 100; // テンピン固定
     const CHIP_RATE = 200;   // チップ 1枚 200円固定
 
     let games = [];
@@ -212,14 +230,21 @@
 
     window.onload = () => {
       loadState();
+      updateChipControl();
     };
 
     function syncTournamentId(val) {
       document.getElementById('reg-tournament-id').value = val;
     }
 
+    function onPhaseChange() {
+      saveState();
+      updateChipControl();
+    }
+
     function onPlayerChange() {
       updateHeaderNames();
+      updateChipLabels();
       saveState();
     }
 
@@ -231,6 +256,33 @@
       names.forEach((n, i) => {
         document.getElementById(`th-p${i+1}`).textContent = n;
       });
+    }
+
+    // チップ入力欄のプレイヤー名ラベルを更新
+    function updateChipLabels() {
+      for (let i = 1; i <= 4; i++) {
+        const name = document.getElementById(`p${i}-select`).value || `P${i}`;
+        document.getElementById(`chip-lbl-p${i}`).textContent = name;
+      }
+    }
+
+    // 節（前半/後半）に応じたチップ入力欄の有効化/無効化切り替え
+    function updateChipControl() {
+      const phase = document.getElementById('select-phase').value;
+      const area = document.getElementById('chip-input-area');
+      const notice = document.getElementById('chip-notice');
+      const btn = document.getElementById('btn-submit-chip');
+
+      if (phase === '後半') {
+        area.classList.remove('chip-disabled');
+        notice.style.display = 'none';
+        btn.disabled = false;
+        updateChipLabels();
+      } else {
+        area.classList.add('chip-disabled');
+        notice.style.display = 'block';
+        btn.disabled = true;
+      }
     }
 
     function saveState() {
@@ -282,6 +334,7 @@
         if (state.rawScoreHistory) rawScoreHistory = state.rawScoreHistory;
 
         updateHeaderNames();
+        updateChipLabels();
         renderTable();
       } catch(e) {
         console.error('復元エラー:', e);
@@ -299,6 +352,7 @@
         if (currentVal) sel.value = currentVal;
       });
       updateHeaderNames();
+      updateChipLabels();
     }
 
     function switchTab(type) {
@@ -504,20 +558,23 @@
 
     async function sendChipData() {
       const tId = document.getElementById('tournament-id').value.trim();
+      const phase = document.getElementById('select-phase').value;
+
+      if (phase !== '後半') return alert('最終チップ枚数は後半戦の時に送信してください');
       if (!tId) return alert('大会IDを入力してください');
 
       const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
-      if (names.some(n => !n)) return alert('プレイヤーを全員選択してください');
+      if (names.some(n => !n)) return alert('対局プレイヤーを全員選択してください');
 
       const chipVals = ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value);
-      if (chipVals.some(v => v === '')) return alert('4人全員のチップ枚数を入力してください（0枚の場合は0）');
+      if (chipVals.some(v => v === '')) return alert('4人全員の最終チップ枚数を入力してください（0枚の場合は0）');
 
       const chipData = names.map((name, i) => ({
         name: name,
         chips: Number(chipVals[i])
       }));
 
-      if (!confirm(`選択中の4名の最終チップ枚数を送信保存しますか？`)) return;
+      if (!confirm(`【${names.join(' / ')}】\nの4名の最終チップ枚数を送信保存しますか？`)) return;
 
       try {
         const res = await fetch(GAS_URL, {
