@@ -137,10 +137,10 @@
 
       <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
       <div class="grid">
-        <input type="number" id="s1" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
-        <input type="number" id="s2" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
-        <input type="number" id="s3" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
-        <input type="number" id="s4" placeholder="持ち点" inputmode="numeric" oninput="saveState()">
+        <input type="text" id="s1" placeholder="持ち点" oninput="saveState()">
+        <input type="text" id="s2" placeholder="持ち点" oninput="saveState()">
+        <input type="text" id="s3" placeholder="持ち点" oninput="saveState()">
+        <input type="text" id="s4" placeholder="持ち点" oninput="saveState()">
       </div>
 
       <button onclick="addGame()">1局のスコアを確定</button>
@@ -197,10 +197,10 @@
           <div id="chip-lbl-p4" style="font-size:11px; font-weight:bold; text-align:center;">P4</div>
         </div>
         <div class="grid">
-          <input type="number" id="chip1" placeholder="枚数" inputmode="numeric">
-          <input type="number" id="chip2" placeholder="枚数" inputmode="numeric">
-          <input type="number" id="chip3" placeholder="枚数" inputmode="numeric">
-          <input type="number" id="chip4" placeholder="枚数" inputmode="numeric">
+          <input type="text" id="chip1" placeholder="枚数">
+          <input type="text" id="chip2" placeholder="枚数">
+          <input type="text" id="chip3" placeholder="枚数">
+          <input type="text" id="chip4" placeholder="枚数">
         </div>
         <button id="btn-submit-chip" class="btn-chip" onclick="sendChipData()" disabled>🪙 最終チップ枚数を送信保存</button>
       </div>
@@ -257,7 +257,7 @@
       <div class="help-section">
         <div class="help-title">📝 スコア入力と計算ルール</div>
         <div class="help-text">
-          ・<b>持ち点入力:</b> 38,500点の場合 ➔ <code>385</code> と上位3桁を入力。<br>
+          ・<b>持ち点入力:</b> 38,500点の場合 ➔ <code>385</code> と上位3桁を入力（※マイナス持ち点も入力可）。<br>
           ・<b>自動計算:</b> ウマ（+20, +10, -10, -20）とオカ（30,000点返し）が自動計算されます。<br>
           ・<b>端数処理:</b> 百の位を四捨五入して計算します。<br>
           ・<b>データ送信:</b> 各節「3局分」確定させると送信ボタンが押せるようになります。
@@ -333,10 +333,10 @@
         <div id="edit-lbl-p4" style="font-size:11px; font-weight:bold; text-align:center;">P4</div>
       </div>
       <div class="grid" style="margin-bottom:12px;">
-        <input type="number" id="edit-s1" placeholder="持ち点" inputmode="numeric">
-        <input type="number" id="edit-s2" placeholder="持ち点" inputmode="numeric">
-        <input type="number" id="edit-s3" placeholder="持ち点" inputmode="numeric">
-        <input type="number" id="edit-s4" placeholder="持ち点" inputmode="numeric">
+        <input type="text" id="edit-s1" placeholder="持ち点">
+        <input type="text" id="edit-s2" placeholder="持ち点">
+        <input type="text" id="edit-s3" placeholder="持ち点">
+        <input type="text" id="edit-s4" placeholder="持ち点">
       </div>
 
       <button style="background-color:#ffc107; color:#212529;" onclick="saveEditedLog()">💾 修正スコアを上書き保存</button>
@@ -353,6 +353,16 @@
     let currentPlayersList = [];
     let fetchedSummaryData = [];
     let currentEditingLogData = null;
+
+    // 全角マイナス・全角数字を半角数値にクレンジングする共通関数
+    function parseNumberInput(val) {
+      if (val === null || val === undefined) return NaN;
+      let s = String(val).trim();
+      if (s === '') return NaN;
+      s = s.replace(/[ー−―ー]/g, '-');
+      s = s.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+      return Number(s);
+    }
 
     window.onload = () => {
       loadState();
@@ -620,14 +630,23 @@
     }
 
     function addGame() {
-      const rawInputs = ['s1','s2','s3','s4'].map(id => document.getElementById(id).value);
-      if (rawInputs.some(val => val === '')) return alert('4人全員の持ち点を入力してください');
+      const rawInputs = [
+        document.getElementById('s1').value,
+        document.getElementById('s2').value,
+        document.getElementById('s3').value,
+        document.getElementById('s4').value
+      ];
 
-      const actualScores = rawInputs.map(val => Number(val) * 100);
+      const parsedValues = rawInputs.map(parseNumberInput);
+      if (parsedValues.some(val => isNaN(val))) {
+        return alert('4人全員の持ち点を正しく入力してください（例: 385）');
+      }
+
+      const actualScores = parsedValues.map(val => val * 100);
       rawScoreHistory.push(actualScores);
 
-      let players = rawInputs.map((val, idx) => {
-        let rawScore = Number(val) * 100;
+      let players = parsedValues.map((val, idx) => {
+        let rawScore = val * 100;
         let roundedPoint = Math.round(rawScore / 1000) * 1000;
         return { idx, rawScore, roundedPoint, score: 0 };
       });
@@ -755,12 +774,16 @@
       const names = ['p1-select','p2-select','p3-select','p4-select'].map(id => document.getElementById(id).value);
       if (names.some(n => !n)) return alert('対局プレイヤーを全員選択してください');
 
-      const chipVals = ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value);
-      if (chipVals.some(v => v === '')) return alert('4人全員の最終チップ枚数を入力してください（0枚の場合は0）');
+      const chipInputs = ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value);
+      const parsedChips = chipInputs.map(parseNumberInput);
+
+      if (parsedChips.some(v => isNaN(v))) {
+        return alert('4人全員の最終チップ枚数を正しく入力してください（0枚の場合は0、マイナスも入力可）');
+      }
 
       const chipData = names.map((name, i) => ({
         name: name,
-        chips: Number(chipVals[i])
+        chips: parsedChips[i]
       }));
 
       if (!confirm(`【${names.join(' / ')}】\nの4名の最終チップ枚数を送信保存しますか？`)) return;
@@ -958,11 +981,20 @@
     async function saveEditedLog() {
       if (!currentEditingLogData) return;
 
-      const rawInputs = ['edit-s1','edit-s2','edit-s3','edit-s4'].map(id => document.getElementById(id).value);
-      if (rawInputs.some(val => val === '')) return alert('4人全員の持ち点を入力してください');
+      const rawInputs = [
+        document.getElementById('edit-s1').value,
+        document.getElementById('edit-s2').value,
+        document.getElementById('edit-s3').value,
+        document.getElementById('edit-s4').value
+      ];
 
-      let players = rawInputs.map((val, idx) => {
-        let rawScore = Number(val) * 100;
+      const parsedValues = rawInputs.map(parseNumberInput);
+      if (parsedValues.some(val => isNaN(val))) {
+        return alert('4人全員の持ち点を正しく入力してください（例: 385）');
+      }
+
+      let players = parsedValues.map((val, idx) => {
+        let rawScore = val * 100;
         let roundedPoint = Math.round(rawScore / 1000) * 1000;
         return { idx, rawScore, roundedPoint, score: 0 };
       });
