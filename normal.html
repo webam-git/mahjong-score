@@ -246,7 +246,7 @@
       <input type="text" id="p4" placeholder="P4">
     </div>
 
-    <div class="label-sm">持ち点 (上位3桁を入力 例: 385 / 飛びは -30)</div>
+    <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
     <div class="grid">
       <input type="text" id="s1" placeholder="P1持ち点">
       <input type="text" id="s2" placeholder="P2持ち点">
@@ -319,7 +319,7 @@
         <div class="help-title">🔰 基本的な手順</div>
         <div class="help-text">
           <span class="help-step">1. 設定・名前</span> 倍率選択、プレイヤー名を入力。<br>
-          <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code> / マイナス持ち点は <code>-30</code>）。<br>
+          <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code> ※マイナス持ち点も入力可）。<br>
           <span class="help-step">3. 局の確定</span> 「1局のスコアを確定」を押すと自動で計算・蓄積されます。<br>
           <span class="help-step">4. 最終精算</span> 対局終了後、チップ獲得枚数を入力して「最終スコア＆精算ptを確定」を押します。
         </div>
@@ -460,7 +460,7 @@
       const parsedValues = rawInputs.map(parseNumberInput);
 
       if (parsedValues.some(val => isNaN(val))) {
-        return alert('4人分すべての持ち点を正しく入力してください（例: 385、ハコは -30）');
+        return alert('4人分すべての持ち点を正しく入力してください（例: 385）');
       }
 
       const actualScores = parsedValues.map(val => val * 100);
