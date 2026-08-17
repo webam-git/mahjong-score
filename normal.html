@@ -230,7 +230,7 @@
       </div>
       <div>
         <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 2px;">チップ1枚 (pt)</div>
-        <input type="number" id="rate-chip" value="200" placeholder="200" inputmode="numeric">
+        <input type="text" id="rate-chip" value="200" placeholder="200">
       </div>
     </div>
 
@@ -246,12 +246,12 @@
       <input type="text" id="p4" placeholder="P4">
     </div>
 
-    <div class="label-sm">持ち点 (上位3桁を入力 例: 385)</div>
+    <div class="label-sm">持ち点 (上位3桁を入力 例: 385 / 飛びは -30)</div>
     <div class="grid">
-      <input type="number" id="s1" placeholder="P1持ち点" inputmode="numeric">
-      <input type="number" id="s2" placeholder="P2持ち点" inputmode="numeric">
-      <input type="number" id="s3" placeholder="P3持ち点" inputmode="numeric">
-      <input type="number" id="s4" placeholder="P4持ち点" inputmode="numeric">
+      <input type="text" id="s1" placeholder="P1持ち点">
+      <input type="text" id="s2" placeholder="P2持ち点">
+      <input type="text" id="s3" placeholder="P3持ち点">
+      <input type="text" id="s4" placeholder="P4持ち点">
     </div>
 
     <button onclick="addGame()">1局のスコアを確定</button>
@@ -289,12 +289,12 @@
 
   <!-- 3. チップ入力 & 最終精算 -->
   <div class="card">
-    <div class="label-sm">チップ獲得枚数 (プラス/マイナス)</div>
+    <div class="label-sm">チップ獲得枚数 (±入力可)</div>
     <div class="grid">
-      <input type="number" id="chip1" placeholder="0" inputmode="numeric">
-      <input type="number" id="chip2" placeholder="0" inputmode="numeric">
-      <input type="number" id="chip3" placeholder="0" inputmode="numeric">
-      <input type="number" id="chip4" placeholder="0" inputmode="numeric">
+      <input type="text" id="chip1" placeholder="0">
+      <input type="text" id="chip2" placeholder="0">
+      <input type="text" id="chip3" placeholder="0">
+      <input type="text" id="chip4" placeholder="0">
     </div>
     <button class="btn-calc" onclick="calcFinal()">最終スコア＆精算ptを確定</button>
   </div>
@@ -319,7 +319,7 @@
         <div class="help-title">🔰 基本的な手順</div>
         <div class="help-text">
           <span class="help-step">1. 設定・名前</span> 倍率選択、プレイヤー名を入力。<br>
-          <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code>）。<br>
+          <span class="help-step">2. 持ち点入力</span> 終局時の持ち点を上位3桁で入力（例: 38,500点 ➔ <code>385</code> / マイナス持ち点は <code>-30</code>）。<br>
           <span class="help-step">3. 局の確定</span> 「1局のスコアを確定」を押すと自動で計算・蓄積されます。<br>
           <span class="help-step">4. 最終精算</span> 対局終了後、チップ獲得枚数を入力して「最終スコア＆精算ptを確定」を押します。
         </div>
@@ -359,6 +359,18 @@
     let games = [];
     let rawScoreHistory = [];
 
+    // 全角数字・全角マイナスを半角数値にクレンジングする関数
+    function parseNumberInput(val) {
+      if (val === null || val === undefined) return NaN;
+      let s = String(val).trim();
+      if (s === '') return NaN;
+      // 全角マイナス・ハイフンを半角マイナスに置換
+      s = s.replace(/[ー−―ー]/g, '-');
+      // 全角英数字を半角に変換
+      s = s.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+      return Number(s);
+    }
+
     window.onload = () => {
       loadState();
       
@@ -371,7 +383,7 @@
         });
       });
 
-      ['chip1','chip2','chip3','chip4','rate-chip'].forEach(id => {
+      ['chip1','chip2','chip3','chip4','rate-chip','s1','s2','s3','s4'].forEach(id => {
         document.getElementById(id).addEventListener('input', saveState);
       });
     };
@@ -395,6 +407,7 @@
         rateChip: document.getElementById('rate-chip').value,
         names: ['p1','p2','p3','p4'].map(id => document.getElementById(id).value),
         chips: ['chip1','chip2','chip3','chip4'].map(id => document.getElementById(id).value),
+        scores: ['s1','s2','s3','s4'].map(id => document.getElementById(id).value),
         games: games,
         rawScoreHistory: rawScoreHistory
       };
@@ -422,6 +435,11 @@
             document.getElementById(`chip${idx+1}`).value = chip;
           });
         }
+        if (state.scores) {
+          state.scores.forEach((s, idx) => {
+            document.getElementById(`s${idx+1}`).value = s;
+          });
+        }
         if (state.games) games = state.games;
         if (state.rawScoreHistory) rawScoreHistory = state.rawScoreHistory;
 
@@ -439,15 +457,17 @@
         document.getElementById('s4').value
       ];
 
-      if (rawInputs.some(val => val === '')) {
-        return alert('4人分すべての持ち点を入力してください');
+      const parsedValues = rawInputs.map(parseNumberInput);
+
+      if (parsedValues.some(val => isNaN(val))) {
+        return alert('4人分すべての持ち点を正しく入力してください（例: 385、ハコは -30）');
       }
 
-      const actualScores = rawInputs.map(val => Number(val) * 100);
+      const actualScores = parsedValues.map(val => val * 100);
       rawScoreHistory.push(actualScores);
 
-      let players = rawInputs.map((val, idx) => {
-        let rawScore = Number(val) * 100;
+      let players = parsedValues.map((val, idx) => {
+        let rawScore = val * 100;
         let roundedPoint = Math.round(rawScore / 1000) * 1000;
         return { idx, rawScore, roundedPoint, score: 0 };
       });
@@ -553,8 +573,8 @@
       let totals = [0, 0, 0, 0];
       games.forEach(g => g.forEach((s, idx) => totals[idx] += s));
 
-      const rateScore = Number(document.getElementById('rate-select').value) || 0;
-      const rateChip = Number(document.getElementById('rate-chip').value) || 0;
+      const rateScore = parseNumberInput(document.getElementById('rate-select').value) || 0;
+      const rateChip = parseNumberInput(document.getElementById('rate-chip').value) || 0;
 
       const names = [
         document.getElementById('p1').value || 'P1',
@@ -564,10 +584,10 @@
       ];
 
       const chips = [
-        Number(document.getElementById('chip1').value) || 0,
-        Number(document.getElementById('chip2').value) || 0,
-        Number(document.getElementById('chip3').value) || 0,
-        Number(document.getElementById('chip4').value) || 0
+        parseNumberInput(document.getElementById('chip1').value) || 0,
+        parseNumberInput(document.getElementById('chip2').value) || 0,
+        parseNumberInput(document.getElementById('chip3').value) || 0,
+        parseNumberInput(document.getElementById('chip4').value) || 0
       ];
 
       let html = '<div style="margin-bottom:10px;">🏆 最終精算結果</div><div style="font-size:14px; text-align:left;">';
