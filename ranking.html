@@ -175,11 +175,12 @@
       saveData();
     }
 
+    // プレースホルダーの「+25.0」を「25.0」に変更
     function createRowHtml(placeholderName = '選手01', name = '', s1 = '', c1 = '', s2 = '', c2 = '') {
       return `
         <tr>
           <td><input type="text" class="row-name" value="${name}" placeholder="${placeholderName}"></td>
-          <td><input type="text" class="row-s1" value="${s1}" placeholder="+25.0"></td>
+          <td><input type="text" class="row-s1" value="${s1}" placeholder="25.0"></td>
           <td><input type="text" class="row-c1" value="${c1}" placeholder="0"></td>
           <td><input type="text" class="row-s2" value="${s2}" placeholder="-12.0"></td>
           <td><input type="text" class="row-c2" value="${c2}" placeholder="0"></td>
@@ -189,7 +190,7 @@
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v7');
+      localStorage.removeItem('quick_ranking_data_v8');
       if (currentSelectedCount) {
         initDefaultRows(currentSelectedCount);
       }
@@ -232,11 +233,11 @@
         resultVisible: document.getElementById('result-area').style.display === 'block'
       };
 
-      localStorage.setItem('quick_ranking_data_v7', JSON.stringify(state));
+      localStorage.setItem('quick_ranking_data_v8', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v7');
+      const raw = localStorage.getItem('quick_ranking_data_v8');
       if (!raw) return;
 
       try {
@@ -319,9 +320,7 @@
         return alert(`⚠️ 未入力の項目があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の入力欄をすべて入力してから集計してください。`);
       }
 
-      // ==========================================
-      // 1. 純粋なスコア順位表の描画（トータルスコア降順）
-      // ==========================================
+      // 1. 純粋なスコア順位表の描画
       const scoreList = [...list].sort((a, b) => b.totalScore - a.totalScore);
       const scoreTbody = document.getElementById('score-ranking-tbody');
       scoreTbody.innerHTML = '';
@@ -343,9 +342,7 @@
         `;
       });
 
-      // ==========================================
-      // 2. トータル精算順位表の描画（トータル収支降順、同点はスコア順）
-      // ==========================================
+      // 2. トータル精算順位表の描画
       const moneyList = [...list].sort((a, b) => b.totalMoney - a.totalMoney || b.totalScore - a.totalScore);
       const moneyTbody = document.getElementById('money-ranking-tbody');
       moneyTbody.innerHTML = '';
