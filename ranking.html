@@ -37,6 +37,14 @@
     .score-plus { color: #d9534f; font-weight: bold; }
     .score-minus { color: #0275d8; font-weight: bold; }
     #result-area { display: none; margin-top: 15px; }
+
+    .result-section-title {
+      font-size: 13px;
+      font-weight: bold;
+      text-align: center;
+      margin: 10px 0 6px 0;
+      color: #333;
+    }
   </style>
 </head>
 <body>
@@ -83,18 +91,39 @@
 
   <!-- 結果表示カード -->
   <div id="result-area" class="card">
-    <h3 style="font-size:14px; text-align:center; margin-top:0;">🏆 最終ランキング結果</h3>
-    <table id="result-table">
+    <!-- 1. 純粋なスコアランキング -->
+    <div class="result-section-title" style="color: #007bff;">🏆 個人スコア順位表（チップ除く）</div>
+    <table>
       <thead>
         <tr>
-          <th>順位</th>
-          <th>名前</th>
-          <th>トータル<br>スコア</th>
-          <th>トータル<br>チップ</th>
-          <th>トータル<br>収支</th>
+          <th style="width: 15%;">順位</th>
+          <th style="width: 35%;">名前</th>
+          <th style="width: 25%;">前半</th>
+          <th style="width: 25%;">後半</th>
+          <th style="width: 25%;">トータルスコア</th>
         </tr>
       </thead>
-      <tbody id="result-tbody"></tbody>
+      <tbody id="score-ranking-tbody"></tbody>
+    </table>
+
+    <hr style="border:none; border-top: 1px dashed #ccc; margin: 20px 0 15px 0;">
+
+    <!-- 2. チップを含めた精算ランキング -->
+    <div class="result-section-title" style="color: #28a745;">🪙 トータル精算順位表（スコア＋チップ換算）</div>
+    <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 6px;">
+      ※(スコア × 100pt) ＋ (チップ × 200pt)
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 15%;">順位</th>
+          <th style="width: 30%;">名前</th>
+          <th style="width: 25%;">スコア</th>
+          <th style="width: 20%;">チップ</th>
+          <th style="width: 25%;">トータル収支</th>
+        </tr>
+      </thead>
+      <tbody id="money-ranking-tbody"></tbody>
     </table>
   </div>
 
@@ -160,7 +189,7 @@
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v6');
+      localStorage.removeItem('quick_ranking_data_v7');
       if (currentSelectedCount) {
         initDefaultRows(currentSelectedCount);
       }
@@ -198,15 +227,16 @@
       const state = {
         selectedCount: currentSelectedCount,
         rows: data,
-        resultHtml: document.getElementById('result-tbody').innerHTML,
+        scoreHtml: document.getElementById('score-ranking-tbody').innerHTML,
+        moneyHtml: document.getElementById('money-ranking-tbody').innerHTML,
         resultVisible: document.getElementById('result-area').style.display === 'block'
       };
 
-      localStorage.setItem('quick_ranking_data_v6', JSON.stringify(state));
+      localStorage.setItem('quick_ranking_data_v7', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v6');
+      const raw = localStorage.getItem('quick_ranking_data_v7');
       if (!raw) return;
 
       try {
@@ -225,8 +255,9 @@
             });
           }
 
-          if (state.resultVisible && state.resultHtml) {
-            document.getElementById('result-tbody').innerHTML = state.resultHtml;
+          if (state.resultVisible) {
+            if (state.scoreHtml) document.getElementById('score-ranking-tbody').innerHTML = state.scoreHtml;
+            if (state.moneyHtml) document.getElementById('money-ranking-tbody').innerHTML = state.moneyHtml;
             document.getElementById('result-area').style.display = 'block';
           }
         }
@@ -280,7 +311,7 @@
           const totalChip = c1 + c2;
           const totalMoney = (totalScore * 100) + (totalChip * 200);
 
-          list.push({ name, totalScore, totalChip, totalMoney });
+          list.push({ name, s1, s2, totalScore, totalChip, totalMoney });
         }
       });
 
@@ -288,20 +319,45 @@
         return alert(`⚠️ 未入力の項目があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の入力欄をすべて入力してから集計してください。`);
       }
 
-      // トータル収支（同点ならトータルスコア）で降順ソート
-      list.sort((a, b) => b.totalMoney - a.totalMoney || b.totalScore - a.totalScore);
+      // ==========================================
+      // 1. 純粋なスコア順位表の描画（トータルスコア降順）
+      // ==========================================
+      const scoreList = [...list].sort((a, b) => b.totalScore - a.totalScore);
+      const scoreTbody = document.getElementById('score-ranking-tbody');
+      scoreTbody.innerHTML = '';
 
-      const resTbody = document.getElementById('result-tbody');
-      resTbody.innerHTML = '';
+      scoreList.forEach((p, idx) => {
+        const scoreClass = p.totalScore > 0 ? 'score-plus' : (p.totalScore < 0 ? 'score-minus' : '');
+        const fmtScore = p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore;
+        const fmtS1 = p.s1 > 0 ? `+${p.s1}` : p.s1;
+        const fmtS2 = p.s2 > 0 ? `+${p.s2}` : p.s2;
 
-      list.forEach((p, idx) => {
+        scoreTbody.innerHTML += `
+          <tr>
+            <td style="font-weight:bold;">${idx + 1}位</td>
+            <td>${p.name}</td>
+            <td style="font-size:11px; color:#666;">${fmtS1}</td>
+            <td style="font-size:11px; color:#666;">${fmtS2}</td>
+            <td class="${scoreClass}">${fmtScore}</td>
+          </tr>
+        `;
+      });
+
+      // ==========================================
+      // 2. トータル精算順位表の描画（トータル収支降順、同点はスコア順）
+      // ==========================================
+      const moneyList = [...list].sort((a, b) => b.totalMoney - a.totalMoney || b.totalScore - a.totalScore);
+      const moneyTbody = document.getElementById('money-ranking-tbody');
+      moneyTbody.innerHTML = '';
+
+      moneyList.forEach((p, idx) => {
         const scoreClass = p.totalScore > 0 ? 'score-plus' : (p.totalScore < 0 ? 'score-minus' : '');
         const moneyClass = p.totalMoney > 0 ? 'score-plus' : (p.totalMoney < 0 ? 'score-minus' : '');
         const fmtScore = p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore;
         const fmtMoney = p.totalMoney > 0 ? `+${p.totalMoney.toLocaleString()} pt` : `${p.totalMoney.toLocaleString()} pt`;
         const fmtChip = p.totalChip > 0 ? `+${p.totalChip}枚` : `${p.totalChip}枚`;
 
-        resTbody.innerHTML += `
+        moneyTbody.innerHTML += `
           <tr>
             <td style="font-weight:bold;">${idx + 1}位</td>
             <td>${p.name}</td>
