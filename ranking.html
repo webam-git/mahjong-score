@@ -5,23 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>大会ランキング集計</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f8f9fa; color: #333; }
-    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    h1 { font-size: 1.2rem; margin: 0; text-align: center; flex: 1; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 12px; background-color: #f8f9fa; color: #333; }
+    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    h1 { font-size: 1.15rem; margin: 0; text-align: center; flex: 1; }
     .btn-top { text-decoration: none; font-size: 12px; color: #007bff; font-weight: bold; }
-    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
-    .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 8px; }
+    .card { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 12px; }
+    .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 6px; }
     
     /* 人数選択ボタン群 */
-    .mode-select-area { display: flex; gap: 8px; margin-bottom: 12px; }
-    .mode-btn { flex: 1; padding: 10px; font-size: 13px; font-weight: bold; border: 2px solid #007bff; background: #fff; color: #007bff; border-radius: 6px; cursor: pointer; }
+    .mode-select-area { display: flex; gap: 8px; margin-bottom: 10px; }
+    .mode-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: bold; border: 2px solid #007bff; background: #fff; color: #007bff; border-radius: 6px; cursor: pointer; }
     .mode-btn.active { background: #007bff; color: #fff; }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
-    th, td { border: 1px solid #dee2e6; padding: 6px 3px; text-align: center; }
-    th { background: #e9ecef; font-size: 11px; }
+    /* 入力用テーブル */
+    .input-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; table-layout: fixed; }
+    .input-table th, .input-table td { border: 1px solid #dee2e6; padding: 5px 2px; text-align: center; }
+    .input-table th { background: #e9ecef; font-size: 11px; }
     
-    input[type="text"] { width: 100%; padding: 7px 3px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 13px; background: #fff; transition: border-color 0.2s, background-color 0.2s; }
+    input[type="text"] { width: 100%; padding: 6px 2px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 13px; background: #fff; transition: border-color 0.2s, background-color 0.2s; }
     
     /* 未入力エラー枠 */
     input.input-error {
@@ -31,19 +32,24 @@
 
     button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
     button:active { opacity: 0.8; }
-    .btn-calc { background: #007bff; margin-top: 15px; }
-    .btn-clear { background: #6c757d; font-size: 11px; padding: 4px 8px; width: auto; }
+    .btn-calc { background: #007bff; margin-top: 12px; }
+    .btn-clear { background: #6c757d; font-size: 11px; padding: 3px 8px; width: auto; }
+    
+    /* 結果表示用テーブル（引き締めスタイル） */
+    .res-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 12px; table-layout: fixed; }
+    .res-table th, .res-table td { border: 1px solid #dee2e6; padding: 4px 2px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .res-table th { background: #e9ecef; font-size: 11px; font-weight: bold; color: #495057; }
+    .res-table tr:nth-child(even) { background-color: #fcfcfc; }
     
     .score-plus { color: #d9534f; font-weight: bold; }
     .score-minus { color: #0275d8; font-weight: bold; }
-    #result-area { display: none; margin-top: 15px; }
+    #result-area { display: none; margin-top: 12px; }
 
     .result-section-title {
       font-size: 13px;
       font-weight: bold;
       text-align: center;
-      margin: 10px 0 6px 0;
-      color: #333;
+      margin: 8px 0 4px 0;
     }
   </style>
 </head>
@@ -63,15 +69,15 @@
     </div>
 
     <div id="input-container" style="display: none;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px; margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; margin-top: 6px; border-top: 1px dashed #ddd; padding-top: 8px;">
         <div class="label-sm" style="margin:0;">スコア＆チップ一括入力（全員分必須）</div>
         <button type="button" class="btn-clear" onclick="resetInputs()">クリア</button>
       </div>
-      <div style="font-size:10px; color:#888; text-align:center; margin-bottom:8px;">
+      <div style="font-size:10px; color:#888; text-align:center; margin-bottom:6px;">
         ※1pt = 100pt / チップ1枚 = 200pt で換算（±入力可）
       </div>
 
-      <table>
+      <table class="input-table">
         <thead>
           <tr>
             <th style="width: 28%;">名前</th>
@@ -93,34 +99,34 @@
   <div id="result-area" class="card">
     <!-- 1. 純粋なスコアランキング -->
     <div class="result-section-title" style="color: #007bff;">🏆 個人スコア順位表（チップ除く）</div>
-    <table>
+    <table class="res-table">
       <thead>
         <tr>
-          <th style="width: 15%;">順位</th>
-          <th style="width: 35%;">名前</th>
-          <th style="width: 25%;">前半</th>
-          <th style="width: 25%;">後半</th>
-          <th style="width: 25%;">トータルスコア</th>
+          <th style="width: 14%;">順位</th>
+          <th style="width: 26%;">名前</th>
+          <th style="width: 18%;">前半</th>
+          <th style="width: 18%;">後半</th>
+          <th style="width: 24%;">トータル</th>
         </tr>
       </thead>
       <tbody id="score-ranking-tbody"></tbody>
     </table>
 
-    <hr style="border:none; border-top: 1px dashed #ccc; margin: 20px 0 15px 0;">
+    <hr style="border:none; border-top: 1px dashed #ccc; margin: 15px 0 10px 0;">
 
     <!-- 2. チップを含めた精算ランキング -->
     <div class="result-section-title" style="color: #28a745;">🪙 トータル精算順位表（スコア＋チップ換算）</div>
-    <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 6px;">
+    <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 4px;">
       ※(スコア × 100pt) ＋ (チップ × 200pt)
     </div>
-    <table>
+    <table class="res-table">
       <thead>
         <tr>
-          <th style="width: 15%;">順位</th>
-          <th style="width: 30%;">名前</th>
-          <th style="width: 25%;">スコア</th>
-          <th style="width: 20%;">チップ</th>
-          <th style="width: 25%;">トータル収支</th>
+          <th style="width: 14%;">順位</th>
+          <th style="width: 26%;">名前</th>
+          <th style="width: 18%;">スコア</th>
+          <th style="width: 18%;">チップ</th>
+          <th style="width: 24%;">収支</th>
         </tr>
       </thead>
       <tbody id="money-ranking-tbody"></tbody>
@@ -140,7 +146,6 @@
     window.onload = () => {
       loadSavedData();
 
-      // 入力時に赤枠（エラー）を解除＆自動保存
       document.getElementById('input-tbody').addEventListener('input', (e) => {
         if (e.target && e.target.classList.contains('input-error')) {
           if (e.target.value.trim() !== '') {
@@ -175,7 +180,6 @@
       saveData();
     }
 
-    // プレースホルダーの「+25.0」を「25.0」に変更
     function createRowHtml(placeholderName = '選手01', name = '', s1 = '', c1 = '', s2 = '', c2 = '') {
       return `
         <tr>
@@ -190,7 +194,7 @@
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v8');
+      localStorage.removeItem('quick_ranking_data_v9');
       if (currentSelectedCount) {
         initDefaultRows(currentSelectedCount);
       }
@@ -233,11 +237,11 @@
         resultVisible: document.getElementById('result-area').style.display === 'block'
       };
 
-      localStorage.setItem('quick_ranking_data_v8', JSON.stringify(state));
+      localStorage.setItem('quick_ranking_data_v9', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v8');
+      const raw = localStorage.getItem('quick_ranking_data_v9');
       if (!raw) return;
 
       try {
@@ -273,7 +277,6 @@
       const list = [];
       let hasError = false;
 
-      // 全行の全項目（名前・スコア・チップ）を厳格にチェック
       rows.forEach((tr) => {
         const nameInput = tr.querySelector('.row-name');
         const s1Input = tr.querySelector('.row-s1');
@@ -320,7 +323,7 @@
         return alert(`⚠️ 未入力の項目があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の入力欄をすべて入力してから集計してください。`);
       }
 
-      // 1. 純粋なスコア順位表の描画
+      // 1. スコア順位表の描画
       const scoreList = [...list].sort((a, b) => b.totalScore - a.totalScore);
       const scoreTbody = document.getElementById('score-ranking-tbody');
       scoreTbody.innerHTML = '';
@@ -334,7 +337,7 @@
         scoreTbody.innerHTML += `
           <tr>
             <td style="font-weight:bold;">${idx + 1}位</td>
-            <td>${p.name}</td>
+            <td style="font-weight:bold;">${p.name}</td>
             <td style="font-size:11px; color:#666;">${fmtS1}</td>
             <td style="font-size:11px; color:#666;">${fmtS2}</td>
             <td class="${scoreClass}">${fmtScore}</td>
@@ -357,9 +360,9 @@
         moneyTbody.innerHTML += `
           <tr>
             <td style="font-weight:bold;">${idx + 1}位</td>
-            <td>${p.name}</td>
-            <td class="${scoreClass}">${fmtScore}</td>
-            <td>${fmtChip}</td>
+            <td style="font-weight:bold;">${p.name}</td>
+            <td class="${scoreClass}" style="font-size:11px;">${fmtScore}</td>
+            <td style="font-size:11px;">${fmtChip}</td>
             <td class="${moneyClass}">${fmtMoney}</td>
           </tr>
         `;
