@@ -24,7 +24,7 @@
     
     input[type="text"] { width: 100%; padding: 6px 2px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 13px; background: #fff; transition: border-color 0.2s, background-color 0.2s; }
     
-    /* 未入力エラー枠 */
+    /* 未入力・不正エラー枠 */
     input.input-error {
       border: 2px solid #dc3545 !important;
       background-color: #fff8f8 !important;
@@ -77,7 +77,7 @@
         <button type="button" class="btn-clear" onclick="resetInputs()">クリア</button>
       </div>
       <div style="font-size:10px; color:#888; text-align:center; margin-bottom:6px;">
-        ※1pt = 100pt / チップ1枚 = 200pt で換算（±入力可）
+        ※1pt = 100pt / チップ1枚 = 200pt で換算（±数値のみ入力可）
       </div>
 
       <table class="input-table">
@@ -125,20 +125,70 @@
   <script>
     let currentSelectedCount = null;
 
-    function parseNum(val) {
-      if (!val) return 0;
-      let s = String(val).trim().replace(/[ー−―ー]/g, '-').replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-      let n = Number(s);
-      return isNaN(n) ? 0 : n;
+    // スコア用フィルタ：数字、先頭マイナス、小数点のみ許可
+    function sanitizeScoreInput(val) {
+      if (!val) return '';
+      let s = String(val).trim()
+        .replace(/[ー−―ー]/g, '-')
+        .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/[^0-9.-]/g, '');
+
+      let isNegative = s.startsWith('-');
+      s = s.replace(/-/g, '');
+      if (isNegative) s = '-' + s;
+
+      let parts = s.split('.');
+      if (parts.length > 2) {
+        s = parts[0] + '.' + parts.slice(1).join('');
+      }
+      return s;
+    }
+
+    // チップ用フィルタ：数字、先頭マイナスのみ許可（小数は不可）
+    function sanitizeChipInput(val) {
+      if (!val) return '';
+      let s = String(val).trim()
+        .replace(/[ー−―ー]/g, '-')
+        .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/[^0-9-]/g, '');
+
+      let isNegative = s.startsWith('-');
+      s = s.replace(/-/g, '');
+      if (isNegative) s = '-' + s;
+      return s;
+    }
+
+    // 有効な数値かどうか検証（NaN、空文字、単独の'-'や'.'は無効）
+    function isValidNumber(val) {
+      if (val === null || val === undefined) return false;
+      let s = String(val).trim();
+      if (s === '' || s === '-' || s === '.' || s === '-.') return false;
+      return !isNaN(Number(s));
     }
 
     window.onload = () => {
       loadSavedData();
 
-      document.getElementById('input-tbody').addEventListener('input', (e) => {
-        if (e.target && e.target.classList.contains('input-error')) {
-          if (e.target.value.trim() !== '') {
-            e.target.classList.remove('input-error');
+      const tbody = document.getElementById('input-tbody');
+
+      // 入力時に数字以外の不正文字をリアルタイム除去＆エラー赤枠解除
+      tbody.addEventListener('input', (e) => {
+        const target = e.target;
+        if (!target) return;
+
+        if (target.classList.contains('row-s1') || target.classList.contains('row-s2')) {
+          const cleaned = sanitizeScoreInput(target.value);
+          if (target.value !== cleaned) target.value = cleaned;
+        } else if (target.classList.contains('row-c1') || target.classList.contains('row-c2')) {
+          const cleaned = sanitizeChipInput(target.value);
+          if (target.value !== cleaned) target.value = cleaned;
+        }
+
+        if (target.classList.contains('input-error')) {
+          if (target.classList.contains('row-name')) {
+            if (target.value.trim() !== '') target.classList.remove('input-error');
+          } else {
+            if (isValidNumber(target.value)) target.classList.remove('input-error');
           }
         }
         saveData();
@@ -184,7 +234,7 @@
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v12');
+      localStorage.removeItem('quick_ranking_data_v13');
       if (currentSelectedCount) {
         initDefaultRows(currentSelectedCount);
       }
@@ -233,11 +283,11 @@
         resultVisible: document.getElementById('result-area').style.display === 'block'
       };
 
-      localStorage.setItem('quick_ranking_data_v12', JSON.stringify(state));
+      localStorage.setItem('quick_ranking_data_v13', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v12');
+      const raw = localStorage.getItem('quick_ranking_data_v13');
       if (!raw) return;
 
       try {
@@ -286,26 +336,32 @@
         const s2Val = s2Input.value.trim();
         const c2Val = c2Input.value.trim();
 
-        const checkFields = [
-          { el: nameInput, val: name },
+        // 1. 名前の検証（空文字は不可）
+        if (name === '') {
+          nameInput.classList.add('input-error');
+          hasError = true;
+        }
+
+        // 2. 数値項目の検証（数字以外、空文字、'-' のみ等は不可）
+        const numFields = [
           { el: s1Input, val: s1Val },
           { el: c1Input, val: c1Val },
           { el: s2Input, val: s2Val },
           { el: c2Input, val: c2Val }
         ];
 
-        checkFields.forEach(f => {
-          if (f.val === '') {
+        numFields.forEach(f => {
+          if (!isValidNumber(f.val)) {
             f.el.classList.add('input-error');
             hasError = true;
           }
         });
 
         if (!hasError) {
-          const s1 = parseNum(s1Val);
-          const c1 = parseNum(c1Val);
-          const s2 = parseNum(s2Val);
-          const c2 = parseNum(c2Val);
+          const s1 = Number(s1Val);
+          const c1 = Number(c1Val);
+          const s2 = Number(s2Val);
+          const c2 = Number(c2Val);
 
           const totalScore = Math.round((s1 + s2) * 10) / 10;
           const totalChip = c1 + c2;
@@ -316,14 +372,13 @@
       });
 
       if (hasError) {
-        return alert(`⚠️ 未入力の項目があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の入力欄をすべて入力してから集計してください。`);
+        return alert(`⚠️ 入力漏れまたは不正な入力があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の箇所に、正しい数値を入力してください。`);
       }
 
       // トータルスコア降順、同点は最終収支（チップ込み）降順でソート
       list.sort((a, b) => b.totalScore - a.totalScore || b.totalMoney - a.totalMoney);
 
       // 同率順位（タイ判定）の計算
-      let currentRank = 1;
       for (let i = 0; i < list.length; i++) {
         if (i > 0 && list[i].totalScore === list[i - 1].totalScore) {
           list[i].rank = list[i - 1].rank;
