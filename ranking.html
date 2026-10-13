@@ -12,12 +12,23 @@
     .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
     .label-sm { font-size: 11px; color: #666; text-align: center; margin-bottom: 8px; }
     
+    /* 人数選択ボタン群 */
+    .mode-select-area { display: flex; gap: 8px; margin-bottom: 12px; }
+    .mode-btn { flex: 1; padding: 10px; font-size: 13px; font-weight: bold; border: 2px solid #007bff; background: #fff; color: #007bff; border-radius: 6px; cursor: pointer; }
+    .mode-btn.active { background: #007bff; color: #fff; }
+
     table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
     th, td { border: 1px solid #dee2e6; padding: 5px 2px; text-align: center; }
     th { background: #e9ecef; font-size: 11px; }
     
-    input[type="text"] { width: 100%; padding: 6px 2px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 12px; background: #fff; }
+    input[type="text"] { width: 100%; padding: 6px 2px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 12px; background: #fff; transition: border-color 0.2s, background-color 0.2s; }
     
+    /* 未入力エラー枠 */
+    input.input-error {
+      border: 2px solid #dc3545 !important;
+      background-color: #fff8f8 !important;
+    }
+
     button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-size: 15px; font-weight: bold; cursor: pointer; }
     button:active { opacity: 0.8; }
     .btn-add { background: #17a2b8; font-size: 12px; padding: 6px; margin-top: 8px; }
@@ -39,32 +50,39 @@
   </div>
 
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-      <div class="label-sm" style="margin:0;">スコア＆チップ一括入力</div>
-      <button type="button" class="btn-clear" onclick="resetInputs()">クリア</button>
-    </div>
-    <div style="font-size:10px; color:#888; text-align:center; margin-bottom:8px;">
-      ※1pt = 100pt / チップ1枚 = 200pt で換算（±入力可）
+    <div class="label-sm">大会の規模を選択してください</div>
+    <div class="mode-select-area">
+      <button type="button" id="btn-mode-8" class="mode-btn" onclick="selectPlayerCount(8)">👥 8人大会 (2卓)</button>
+      <button type="button" id="btn-mode-12" class="mode-btn" onclick="selectPlayerCount(12)">👥 12人大会 (3卓)</button>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 24%;">名前</th>
-          <th style="width: 17%;">前半<br>スコア</th>
-          <th style="width: 16%;">前半<br>チップ</th>
-          <th style="width: 17%;">後半<br>スコア</th>
-          <th style="width: 16%;">後半<br>チップ</th>
-          <th style="width: 10%;">削除</th>
-        </tr>
-      </thead>
-      <tbody id="input-tbody">
-        <!-- JSで初期行（12人分）を自動生成 -->
-      </tbody>
-    </table>
+    <div id="input-container" style="display: none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px; margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px;">
+        <div class="label-sm" style="margin:0;">スコア＆チップ一括入力</div>
+        <button type="button" class="btn-clear" onclick="resetInputs()">クリア</button>
+      </div>
+      <div style="font-size:10px; color:#888; text-align:center; margin-bottom:8px;">
+        ※1pt = 100pt / チップ1枚 = 200pt で換算（±入力可）
+      </div>
 
-    <button type="button" class="btn-add" onclick="addRow()">➕ 行を追加する</button>
-    <button type="button" class="btn-calc" onclick="calculateRanking()">🏆 ランキングを集計表示</button>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 24%;">名前</th>
+            <th style="width: 17%;">前半<br>スコア</th>
+            <th style="width: 16%;">前半<br>チップ</th>
+            <th style="width: 17%;">後半<br>スコア</th>
+            <th style="width: 16%;">後半<br>チップ</th>
+            <th style="width: 10%;">削除</th>
+          </tr>
+        </thead>
+        <tbody id="input-tbody">
+        </tbody>
+      </table>
+
+      <button type="button" class="btn-add" onclick="addRow()">➕ 行を追加する</button>
+      <button type="button" class="btn-calc" onclick="calculateRanking()">🏆 ランキングを集計表示</button>
+    </div>
   </div>
 
   <!-- 結果表示カード -->
@@ -85,7 +103,8 @@
   </div>
 
   <script>
-    // 全角数字・全角マイナスを半角数値に変換
+    let currentSelectedCount = null;
+
     function parseNum(val) {
       if (!val) return 0;
       let s = String(val).trim().replace(/[ー−―ー]/g, '-').replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
@@ -95,12 +114,47 @@
 
     window.onload = () => {
       loadSavedData();
+
+      // 入力時に赤枠（エラー）を解除＆自動保存
+      document.getElementById('input-tbody').addEventListener('input', (e) => {
+        if (e.target && e.target.classList.contains('input-error')) {
+          if (e.target.value.trim() !== '') {
+            e.target.classList.remove('input-error');
+          }
+        }
+        saveData();
+      });
     };
 
-    function createRowHtml(name = '', s1 = '', c1 = '', s2 = '', c2 = '') {
+    function selectPlayerCount(count) {
+      // 既にデータがあり、別人数に切り替える場合の確認
+      const rows = document.querySelectorAll('#input-tbody tr');
+      const hasInputs = Array.from(rows).some(tr => 
+        tr.querySelector('.row-name').value.trim() !== '' ||
+        tr.querySelector('.row-s1').value.trim() !== '' ||
+        tr.querySelector('.row-s2').value.trim() !== ''
+      );
+
+      if (currentSelectedCount && currentSelectedCount !== count && hasInputs) {
+        if (!confirm(`${count}人大会に切り替えますか？現在の入力内容はリセットされます。`)) {
+          return;
+        }
+      }
+
+      currentSelectedCount = count;
+      document.getElementById('btn-mode-8').classList.toggle('active', count === 8);
+      document.getElementById('btn-mode-12').classList.toggle('active', count === 12);
+      document.getElementById('input-container').style.display = 'block';
+      document.getElementById('result-area').style.display = 'none';
+
+      initDefaultRows(count);
+      saveData();
+    }
+
+    function createRowHtml(placeholderName = '選手01', name = '', s1 = '', c1 = '', s2 = '', c2 = '') {
       return `
         <tr>
-          <td><input type="text" class="row-name" value="${name}" placeholder="選手名"></td>
+          <td><input type="text" class="row-name" value="${name}" placeholder="${placeholderName}"></td>
           <td><input type="text" class="row-s1" value="${s1}" placeholder="+25.0"></td>
           <td><input type="text" class="row-c1" value="${c1}" placeholder="0"></td>
           <td><input type="text" class="row-s2" value="${s2}" placeholder="-12.0"></td>
@@ -112,22 +166,33 @@
 
     function addRow() {
       const tbody = document.getElementById('input-tbody');
-      tbody.insertAdjacentHTML('beforeend', createRowHtml());
+      const count = tbody.querySelectorAll('tr').length + 1;
+      const placeholder = `選手${String(count).padStart(2, '0')}`;
+      tbody.insertAdjacentHTML('beforeend', createRowHtml(placeholder));
+      saveData();
     }
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v2');
-      initDefaultRows();
+      localStorage.removeItem('quick_ranking_data_v4');
+      if (currentSelectedCount) {
+        initDefaultRows(currentSelectedCount);
+      }
       document.getElementById('result-area').style.display = 'none';
+      clearAllErrors();
     }
 
-    function initDefaultRows() {
+    function initDefaultRows(count) {
       const tbody = document.getElementById('input-tbody');
       tbody.innerHTML = '';
-      for (let i = 1; i <= 12; i++) {
-        tbody.insertAdjacentHTML('beforeend', createRowHtml(`選手${String(i).padStart(2, '0')}`));
+      for (let i = 1; i <= count; i++) {
+        const placeholder = `選手${String(i).padStart(2, '0')}`;
+        tbody.insertAdjacentHTML('beforeend', createRowHtml(placeholder));
       }
+    }
+
+    function clearAllErrors() {
+      document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
     }
 
     function saveData() {
@@ -135,6 +200,7 @@
       const data = [];
       rows.forEach(tr => {
         data.push({
+          placeholder: tr.querySelector('.row-name').getAttribute('placeholder') || '',
           name: tr.querySelector('.row-name').value,
           s1: tr.querySelector('.row-s1').value,
           c1: tr.querySelector('.row-c1').value,
@@ -142,50 +208,109 @@
           c2: tr.querySelector('.row-c2').value
         });
       });
-      localStorage.setItem('quick_ranking_data_v2', JSON.stringify(data));
+
+      const state = {
+        selectedCount: currentSelectedCount,
+        rows: data,
+        resultHtml: document.getElementById('result-tbody').innerHTML,
+        resultVisible: document.getElementById('result-area').style.display === 'block'
+      };
+
+      localStorage.setItem('quick_ranking_data_v4', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v2');
-      if (!raw) {
-        initDefaultRows();
-        return;
-      }
+      const raw = localStorage.getItem('quick_ranking_data_v4');
+      if (!raw) return;
+
       try {
-        const data = JSON.parse(raw);
-        const tbody = document.getElementById('input-tbody');
-        tbody.innerHTML = '';
-        data.forEach(item => {
-          tbody.insertAdjacentHTML('beforeend', createRowHtml(item.name, item.s1, item.c1, item.s2, item.c2));
-        });
+        const state = JSON.parse(raw);
+        if (state.selectedCount) {
+          currentSelectedCount = state.selectedCount;
+          document.getElementById('btn-mode-8').classList.toggle('active', currentSelectedCount === 8);
+          document.getElementById('btn-mode-12').classList.toggle('active', currentSelectedCount === 12);
+          document.getElementById('input-container').style.display = 'block';
+
+          const tbody = document.getElementById('input-tbody');
+          tbody.innerHTML = '';
+          if (Array.isArray(state.rows) && state.rows.length > 0) {
+            state.rows.forEach(item => {
+              tbody.insertAdjacentHTML('beforeend', createRowHtml(item.placeholder, item.name, item.s1, item.c1, item.s2, item.c2));
+            });
+          }
+
+          if (state.resultVisible && state.resultHtml) {
+            document.getElementById('result-tbody').innerHTML = state.resultHtml;
+            document.getElementById('result-area').style.display = 'block';
+          }
+        }
       } catch (e) {
-        initDefaultRows();
+        console.error('復元エラー:', e);
       }
     }
 
     function calculateRanking() {
+      clearAllErrors();
       const rows = document.querySelectorAll('#input-tbody tr');
       const list = [];
+      let hasError = false;
 
-      rows.forEach(tr => {
-        const name = tr.querySelector('.row-name').value.trim();
-        if (!name) return; // 名前が空の行は除外
+      rows.forEach((tr, idx) => {
+        const nameInput = tr.querySelector('.row-name');
+        const s1Input = tr.querySelector('.row-s1');
+        const c1Input = tr.querySelector('.row-c1');
+        const s2Input = tr.querySelector('.row-s2');
+        const c2Input = tr.querySelector('.row-c2');
 
-        const s1 = parseNum(tr.querySelector('.row-s1').value);
-        const c1 = parseNum(tr.querySelector('.row-c1').value);
-        const s2 = parseNum(tr.querySelector('.row-s2').value);
-        const c2 = parseNum(tr.querySelector('.row-c2').value);
+        const name = nameInput.value.trim();
+        const s1Val = s1Input.value.trim();
+        const c1Val = c1Input.value.trim();
+        const s2Val = s2Input.value.trim();
+        const c2Val = c2Input.value.trim();
 
-        const totalScore = Math.round((s1 + s2) * 10) / 10;
-        const totalChip = c1 + c2;
-        const totalMoney = (totalScore * 100) + (totalChip * 200);
+        // 1行完全に空欄の場合はスキップ可能
+        const isCompletelyEmpty = (!name && !s1Val && !c1Val && !s2Val && !c2Val);
+        if (isCompletelyEmpty) return;
 
-        list.push({ name, totalScore, totalChip, totalMoney });
+        // 一部でも入力がある、または名前があるのにスコア/チップが欠けている場合はエラー判定
+        const checkFields = [
+          { el: nameInput, val: name },
+          { el: s1Input, val: s1Val },
+          { el: c1Input, val: c1Val },
+          { el: s2Input, val: s2Val },
+          { el: c2Input, val: c2Val }
+        ];
+
+        checkFields.forEach(f => {
+          if (f.val === '') {
+            f.el.classList.add('input-error');
+            hasError = true;
+          }
+        });
+
+        if (!hasError) {
+          const s1 = parseNum(s1Val);
+          const c1 = parseNum(c1Val);
+          const s2 = parseNum(s2Val);
+          const c2 = parseNum(c2Val);
+
+          const totalScore = Math.round((s1 + s2) * 10) / 10;
+          const totalChip = c1 + c2;
+          const totalMoney = (totalScore * 100) + (totalChip * 200);
+
+          list.push({ name, totalScore, totalChip, totalMoney });
+        }
       });
 
-      if (list.length === 0) return alert('選手名を入力してください');
+      if (hasError) {
+        return alert('⚠️ 未入力の項目があります。\n赤枠の入力欄をすべて埋めてから再度集計してください。');
+      }
 
-      // トータル収支（同点の場合はトータルスコア順）で降順ソート
+      if (list.length === 0) {
+        return alert('選手データが1件も入力されていません。');
+      }
+
+      // トータル収支（同点ならトータルスコア）で降順ソート
       list.sort((a, b) => b.totalMoney - a.totalMoney || b.totalScore - a.totalScore);
 
       const resTbody = document.getElementById('result-tbody');
