@@ -63,7 +63,7 @@
     <div style="width: 45px;"></div>
   </div>
 
-  <!-- 入力用カード（集計完了時は非表示になります） -->
+  <!-- 入力用カード -->
   <div id="main-input-card" class="card">
     <div class="label-sm">大会の規模を選択してください</div>
     <div class="mode-select-area">
@@ -98,28 +98,27 @@
     </div>
   </div>
 
-  <!-- 結果表示カード（スクショ用） -->
+  <!-- 結果表示カード -->
   <div id="result-area" class="card">
     <div class="result-section-title">🏆 大会最終結果（スコア順位）</div>
     <div style="font-size: 10px; color: #888; text-align: center; margin-bottom: 6px;">
-      ※収支 = (トータルスコア × 100pt) ＋ (チップ × 200pt)
+      ※最終結果 = (トータルスコア × 100pt) ＋ (チップ × 200pt)
     </div>
     <table class="res-table">
       <thead>
         <tr>
-          <th style="width: 10%;">順位</th>
-          <th style="width: 22%;">名前</th>
-          <th style="width: 13%;">前半</th>
-          <th style="width: 13%;">後半</th>
-          <th style="width: 14%;">スコア</th>
-          <th style="width: 11%;">チップ</th>
-          <th style="width: 17%;">収支</th>
+          <th style="width: 11%;">順位</th>
+          <th style="width: 21%;">名前</th>
+          <th style="width: 12%;">前半</th>
+          <th style="width: 12%;">後半</th>
+          <th style="width: 13%;">スコア</th>
+          <th style="width: 10%;">チップ</th>
+          <th style="width: 21%;">最終結果</th>
         </tr>
       </thead>
       <tbody id="ranking-tbody"></tbody>
     </table>
 
-    <!-- 入力画面に戻すためのボタン（スクショ外に配置） -->
     <button type="button" class="btn-edit-mode" onclick="showInputForm()">✏️ スコアを再編集する</button>
   </div>
 
@@ -185,7 +184,7 @@
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v11');
+      localStorage.removeItem('quick_ranking_data_v12');
       if (currentSelectedCount) {
         initDefaultRows(currentSelectedCount);
       }
@@ -234,11 +233,11 @@
         resultVisible: document.getElementById('result-area').style.display === 'block'
       };
 
-      localStorage.setItem('quick_ranking_data_v11', JSON.stringify(state));
+      localStorage.setItem('quick_ranking_data_v12', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v11');
+      const raw = localStorage.getItem('quick_ranking_data_v12');
       if (!raw) return;
 
       try {
@@ -260,7 +259,7 @@
           if (state.resultVisible && state.resultHtml) {
             document.getElementById('ranking-tbody').innerHTML = state.resultHtml;
             document.getElementById('result-area').style.display = 'block';
-            document.getElementById('main-input-card').style.display = 'none'; // 結果表示中は入力枠を隠す
+            document.getElementById('main-input-card').style.display = 'none';
           }
         }
       } catch (e) {
@@ -320,24 +319,34 @@
         return alert(`⚠️ 未入力の項目があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の入力欄をすべて入力してから集計してください。`);
       }
 
-      // トータルスコア降順でソート（同点は収支順）
+      // トータルスコア降順、同点は最終収支（チップ込み）降順でソート
       list.sort((a, b) => b.totalScore - a.totalScore || b.totalMoney - a.totalMoney);
+
+      // 同率順位（タイ判定）の計算
+      let currentRank = 1;
+      for (let i = 0; i < list.length; i++) {
+        if (i > 0 && list[i].totalScore === list[i - 1].totalScore) {
+          list[i].rank = list[i - 1].rank;
+        } else {
+          list[i].rank = i + 1;
+        }
+      }
 
       const tbody = document.getElementById('ranking-tbody');
       tbody.innerHTML = '';
 
-      list.forEach((p, idx) => {
+      list.forEach((p) => {
         const scoreClass = p.totalScore > 0 ? 'score-plus' : (p.totalScore < 0 ? 'score-minus' : '');
         const moneyClass = p.totalMoney > 0 ? 'score-plus' : (p.totalMoney < 0 ? 'score-minus' : '');
         const fmtScore = p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore;
         const fmtS1 = p.s1 > 0 ? `+${p.s1}` : p.s1;
         const fmtS2 = p.s2 > 0 ? `+${p.s2}` : p.s2;
         const fmtChip = p.totalChip > 0 ? `+${p.totalChip}` : `${p.totalChip}`;
-        const fmtMoney = p.totalMoney > 0 ? `+${p.totalMoney.toLocaleString()}` : `${p.totalMoney.toLocaleString()}`;
+        const fmtMoney = p.totalMoney > 0 ? `+${p.totalMoney.toLocaleString()} pt` : `${p.totalMoney.toLocaleString()} pt`;
 
         tbody.innerHTML += `
           <tr>
-            <td style="font-weight:bold;">${idx + 1}位</td>
+            <td style="font-weight:bold;">${p.rank}位</td>
             <td style="font-weight:bold;">${p.name}</td>
             <td style="color:#666;">${fmtS1}</td>
             <td style="color:#666;">${fmtS2}</td>
@@ -348,7 +357,6 @@
         `;
       });
 
-      // 入力フォームを隠して結果のみを表示
       document.getElementById('main-input-card').style.display = 'none';
       document.getElementById('result-area').style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
