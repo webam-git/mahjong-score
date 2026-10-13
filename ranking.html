@@ -58,7 +58,7 @@
 
     <div id="input-container" style="display: none;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px; margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px;">
-        <div class="label-sm" style="margin:0;">スコア＆チップ一括入力</div>
+        <div class="label-sm" style="margin:0;">スコア＆チップ一括入力（全員分必須）</div>
         <button type="button" class="btn-clear" onclick="resetInputs()">クリア</button>
       </div>
       <div style="font-size:10px; color:#888; text-align:center; margin-bottom:8px;">
@@ -127,7 +127,6 @@
     };
 
     function selectPlayerCount(count) {
-      // 既にデータがあり、別人数に切り替える場合の確認
       const rows = document.querySelectorAll('#input-tbody tr');
       const hasInputs = Array.from(rows).some(tr => 
         tr.querySelector('.row-name').value.trim() !== '' ||
@@ -174,7 +173,7 @@
 
     function resetInputs() {
       if (!confirm('入力内容をすべて消去しますか？')) return;
-      localStorage.removeItem('quick_ranking_data_v4');
+      localStorage.removeItem('quick_ranking_data_v5');
       if (currentSelectedCount) {
         initDefaultRows(currentSelectedCount);
       }
@@ -216,11 +215,11 @@
         resultVisible: document.getElementById('result-area').style.display === 'block'
       };
 
-      localStorage.setItem('quick_ranking_data_v4', JSON.stringify(state));
+      localStorage.setItem('quick_ranking_data_v5', JSON.stringify(state));
     }
 
     function loadSavedData() {
-      const raw = localStorage.getItem('quick_ranking_data_v4');
+      const raw = localStorage.getItem('quick_ranking_data_v5');
       if (!raw) return;
 
       try {
@@ -255,7 +254,8 @@
       const list = [];
       let hasError = false;
 
-      rows.forEach((tr, idx) => {
+      // 全行のすべての項目（名前・スコア・チップ）を厳格にチェック
+      rows.forEach((tr) => {
         const nameInput = tr.querySelector('.row-name');
         const s1Input = tr.querySelector('.row-s1');
         const c1Input = tr.querySelector('.row-c1');
@@ -268,11 +268,6 @@
         const s2Val = s2Input.value.trim();
         const c2Val = c2Input.value.trim();
 
-        // 1行完全に空欄の場合はスキップ可能
-        const isCompletelyEmpty = (!name && !s1Val && !c1Val && !s2Val && !c2Val);
-        if (isCompletelyEmpty) return;
-
-        // 一部でも入力がある、または名前があるのにスコア/チップが欠けている場合はエラー判定
         const checkFields = [
           { el: nameInput, val: name },
           { el: s1Input, val: s1Val },
@@ -303,11 +298,7 @@
       });
 
       if (hasError) {
-        return alert('⚠️ 未入力の項目があります。\n赤枠の入力欄をすべて埋めてから再度集計してください。');
-      }
-
-      if (list.length === 0) {
-        return alert('選手データが1件も入力されていません。');
+        return alert(`⚠️ 未入力の項目があります。\n参加者全員（${currentSelectedCount || rows.length}名分）の赤枠の入力欄をすべて入力してから集計してください。`);
       }
 
       // トータル収支（同点ならトータルスコア）で降順ソート
